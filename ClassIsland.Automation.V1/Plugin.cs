@@ -6,6 +6,7 @@ using ClassIsland.Core.Abstractions;
 using ClassIsland.Core.Abstractions.Services;
 using ClassIsland.Core.Attributes;
 using ClassIsland.Core.Extensions.Registry;
+using ClassIsland.Shared;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -35,9 +36,9 @@ public class Plugin : PluginBase
     {
         try
         {
-            var taskBarIconService = AppBase.Current.Services.GetService<ITaskBarIconService>();
-            var profileService = AppBase.Current.Services.GetService<IProfileService>();
-            var uriService = AppBase.Current.Services.GetService<IUriNavigationService>();
+            var taskBarIconService = IAppHost.TryGetService<ITaskBarIconService>();
+            var profileService = IAppHost.TryGetService<IProfileService>();
+            var uriService = IAppHost.TryGetService<IUriNavigationService>();
 
             if (taskBarIconService == null) return;
 

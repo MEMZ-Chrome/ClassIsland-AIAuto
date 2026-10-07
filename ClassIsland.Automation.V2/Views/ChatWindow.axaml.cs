@@ -91,7 +91,7 @@ public partial class ChatWindow : Window
         }
     }
 
-    private void OnClearImageClicked(object? sender, RoutedEventArgs e)
+    private void OnClearImageClicked(object? sender, RoutedEventArgs? e)
     {
         _selectedImageBytes = null;
         if (ImageStatusTextBlock != null) ImageStatusTextBlock.Text = "未选择图片";
