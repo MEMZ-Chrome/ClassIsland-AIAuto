@@ -37,6 +37,7 @@ public class Plugin : PluginBase
         {
             var taskBarIconService = AppBase.Current.Services.GetService<ITaskBarIconService>();
             var profileService = AppBase.Current.Services.GetService<IProfileService>();
+            var uriService = AppBase.Current.Services.GetService<IUriNavigationService>();
 
             if (taskBarIconService == null) return;
 
@@ -48,7 +49,7 @@ public class Plugin : PluginBase
             {
                 if (_chatWindow == null || !_chatWindow.IsVisible)
                 {
-                    _chatWindow = new ChatWindow(profileService);
+                    _chatWindow = new ChatWindow(profileService, uriService);
                     _chatWindow.Show();
                 }
                 else

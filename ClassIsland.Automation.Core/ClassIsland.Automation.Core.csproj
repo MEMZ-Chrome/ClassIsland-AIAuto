@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="ClassIsland.Shared.IPC" Version="2.0.4" />
+    <PackageReference Include="ClassIsland.Shared" Version="2.0.4" />
   </ItemGroup>
 
 </Project>

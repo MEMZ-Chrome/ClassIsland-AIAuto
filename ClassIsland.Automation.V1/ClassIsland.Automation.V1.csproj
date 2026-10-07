@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ClassIsland.PluginSdk" Version="1.4.2" Condition="Exists('$(NuGetPackageRoot)classisland.pluginsdk\1.4.2')">
+    <PackageReference Include="ClassIsland.PluginSdk" Version="1.7.0">
       <ExcludeAssets>runtime; native</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="System.Text.Json" Version="8.0.5" />

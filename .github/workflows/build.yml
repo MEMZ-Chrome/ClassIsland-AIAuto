@@ -39,15 +39,19 @@ jobs:
         mkdir dist\v2
         Copy-Item -Path "ClassIsland.Automation.V2\bin\Release\net8.0\*" -Destination "dist\v2\" -Recurse -Force
         Compress-Archive -Path "dist\v2\*" -DestinationPath "dist\ClassIsland.Automation.V2.zip"
+        Compress-Archive -Path "dist\v2\*" -DestinationPath "dist\ClassIsland.Automation.V2.cipx"
 
     - name: Package 1.x Output
       run: |
         mkdir dist\v1
         Copy-Item -Path "ClassIsland.Automation.V1\bin\Release\net8.0-windows\*" -Destination "dist\v1\" -Recurse -Force
         Compress-Archive -Path "dist\v1\*" -DestinationPath "dist\ClassIsland.Automation.V1.zip"
+        Compress-Archive -Path "dist\v1\*" -DestinationPath "dist\ClassIsland.Automation.V1.cipx"
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: ClassIsland-Automation-Plugins
-        path: dist\*.zip
+        path: |
+          dist\*.zip
+          dist\*.cipx

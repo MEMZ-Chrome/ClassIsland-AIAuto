@@ -62,69 +62,33 @@ public class AiClientService
     }
 
     /// <summary>
-    /// 执行图片分析或对话，提取课表及指令
+    /// 基于 Tools Call 的通用 Agent 对话交互循环
     /// </summary>
-    public async Task<AiExtractedSchedule> ProcessScheduleOrCommandAsync(
+    public async Task<AgentChatResponse> ExecuteAgentTurnAsync(
         PluginSettings settings,
-        string userPrompt,
-        byte[]? imageBytes = null,
-        string imageMimeType = "image/png",
+        JsonArray conversationMessages,
+        ToolExecutor? executor,
         CancellationToken cancellationToken = default)
     {
         var baseUrl = settings.CurrentBaseUrl.TrimEnd('/');
         var chatUrl = baseUrl.EndsWith("/chat/completions") ? baseUrl : $"{baseUrl}/chat/completions";
 
-        var systemPrompt = BuildSystemPrompt();
+        var agentResponse = new AgentChatResponse();
+        var tools = AiToolDefinitions.GetAvailableTools();
 
-        var messages = new JsonArray
-        {
-            new JsonObject
-            {
-                ["role"] = "system",
-                ["content"] = systemPrompt
-            }
-        };
-
-        var userContent = new JsonArray();
-        var textContent = string.IsNullOrWhiteSpace(userPrompt)
-            ? "请根据上传的课表图片，提取出科目、作息时间表、每日课表安排以及设置项。"
-            : userPrompt;
-
-        userContent.Add(new JsonObject
-        {
-            ["type"] = "text",
-            ["text"] = textContent
-        });
-
-        if (imageBytes != null && imageBytes.Length > 0)
-        {
-            var base64 = Convert.ToBase64String(imageBytes);
-            userContent.Add(new JsonObject
-            {
-                ["type"] = "image_url",
-                ["image_url"] = new JsonObject
-                {
-                    ["url"] = $"data:{imageMimeType};base64,{base64}"
-                }
-            });
-        }
-
-        messages.Add(new JsonObject
-        {
-            ["role"] = "user",
-            ["content"] = userContent
-        });
-
-        var requestBody = new JsonObject
+        // 构造请求
+        var requestPayload = new JsonObject
         {
             ["model"] = settings.CurrentModel,
-            ["messages"] = messages,
+            ["messages"] = conversationMessages.DeepClone(),
+            ["tools"] = tools,
+            ["tool_choice"] = "auto",
             ["temperature"] = 0.2
         };
 
         using var request = new HttpRequestMessage(HttpMethod.Post, chatUrl)
         {
-            Content = new StringContent(requestBody.ToJsonString(), Encoding.UTF8, "application/json")
+            Content = new StringContent(requestPayload.ToJsonString(), Encoding.UTF8, "application/json")
         };
 
         if (!string.IsNullOrWhiteSpace(settings.CurrentApiKey))
@@ -140,107 +104,118 @@ public class AiClientService
         }
 
         using var doc = JsonDocument.Parse(rawResponse);
-        var content = doc.RootElement
-            .GetProperty("choices")[0]
-            .GetProperty("message")
-            .GetProperty("content")
-            .GetString() ?? "";
+        var choice = doc.RootElement.GetProperty("choices")[0];
+        var message = choice.GetProperty("message");
 
-        return ParseAiResponse(content);
-    }
+        var textContent = message.TryGetProperty("content", out var cElem) && cElem.ValueKind == JsonValueKind.String
+            ? cElem.GetString() ?? ""
+            : "";
 
-    private static string BuildSystemPrompt()
-    {
-        return """
-你是一个专门为 ClassIsland 课表信息显示软件提取课表配置与处理软件设置指令的自动化助手。
-当用户上传课表图片或输入指令时，你必须且只能以合法的 JSON 格式进行回复（不要包含任何 markdown 语法外的闲聊内容），结构如下：
+        agentResponse.ReplyText = textContent;
 
-{
-  "message": "简要操作说明或给用户的提示信息",
-  "subjects": [
-    {
-      "name": "语文",
-      "initial": "文",
-      "teacherName": "张老师",
-      "isOutDoor": false
-    }
-  ],
-  "timeLayout": {
-    "name": "作息时间表",
-    "items": [
-      {
-        "startTime": "08:00:00",
-        "endTime": "08:45:00",
-        "timeType": 0,
-        "breakName": "",
-        "defaultSubject": ""
-      },
-      {
-        "startTime": "08:45:00",
-        "endTime": "08:55:00",
-        "timeType": 1,
-        "breakName": "课间休息",
-        "defaultSubject": ""
-      }
-    ]
-  },
-  "classPlans": [
-    {
-      "name": "星期一",
-      "classes": ["语文", "数学", "英语"]
-    }
-  ],
-  "appSettings": {
-    "IsNotificationSoundEnabled": true
-  }
-}
-
-说明规范：
-1. timeType 含义：0 为上课，1 为课间，2 为分割线，3 为行动。
-2. 每一个 classPlans 中的 classes 数组长度应当严格对应 timeLayout 中 timeType==0 的节点数目。
-3. 如果用户包含修改设置项的要求（如关闭声音、修改窗口位置、更新频率等），请在 appSettings 键值对中提供对应属性和值。
-4. 如果只提到设置修改，subjects/timeLayout/classPlans 可为空列表或留空。
-""";
-    }
-
-    private static AiExtractedSchedule ParseAiResponse(string content)
-    {
-        var cleaned = content.Trim();
-        if (cleaned.StartsWith("```json"))
+        // 检查是否有 tool_calls
+        if (message.TryGetProperty("tool_calls", out var toolCallsElem) && toolCallsElem.ValueKind == JsonValueKind.Array)
         {
-            cleaned = cleaned[7..];
-        }
-        else if (cleaned.StartsWith("```"))
-        {
-            cleaned = cleaned[3..];
-        }
-
-        if (cleaned.EndsWith("```"))
-        {
-            cleaned = cleaned[..^3];
-        }
-
-        cleaned = cleaned.Trim();
-
-        try
-        {
-            var result = JsonSerializer.Deserialize<AiExtractedSchedule>(cleaned, new JsonSerializerOptions
+            var assistantMsg = new JsonObject
             {
-                PropertyNameCaseInsensitive = true
-            });
-            if (result != null)
+                ["role"] = "assistant",
+                ["content"] = textContent,
+                ["tool_calls"] = JsonNode.Parse(toolCallsElem.GetRawText())
+            };
+            conversationMessages.Add(assistantMsg);
+
+            foreach (var tc in toolCallsElem.EnumerateArray())
             {
-                return result;
+                var id = tc.GetProperty("id").GetString() ?? Guid.NewGuid().ToString();
+                var fn = tc.GetProperty("function");
+                var name = fn.GetProperty("name").GetString() ?? "";
+                var argsStr = fn.GetProperty("arguments").GetString() ?? "{}";
+
+                JsonObject argsObj;
+                try
+                {
+                    argsObj = JsonNode.Parse(argsStr) as JsonObject ?? new JsonObject();
+                }
+                catch
+                {
+                    argsObj = new JsonObject();
+                }
+
+                var callInfo = new ToolCallInfo
+                {
+                    Id = id,
+                    Name = name,
+                    Arguments = argsObj
+                };
+                agentResponse.ToolCalls.Add(callInfo);
+
+                // 执行工具
+                ToolExecutionResult execResult;
+                if (executor != null)
+                {
+                    execResult = executor.Execute(callInfo);
+                }
+                else
+                {
+                    execResult = new ToolExecutionResult
+                    {
+                        ToolCallId = id,
+                        Name = name,
+                        Success = false,
+                        Result = "本地工具执行器未注入"
+                    };
+                }
+                agentResponse.ExecutedResults.Add(execResult);
+
+                // 将工具调用结果送回历史记录
+                conversationMessages.Add(new JsonObject
+                {
+                    ["role"] = "tool",
+                    ["tool_call_id"] = id,
+                    ["content"] = execResult.Result
+                });
+            }
+
+            // 二轮请求：把工具执行结果交给模型进行最终整合回答
+            var secondPayload = new JsonObject
+            {
+                ["model"] = settings.CurrentModel,
+                ["messages"] = conversationMessages.DeepClone(),
+                ["temperature"] = 0.3
+            };
+
+            using var secondReq = new HttpRequestMessage(HttpMethod.Post, chatUrl)
+            {
+                Content = new StringContent(secondPayload.ToJsonString(), Encoding.UTF8, "application/json")
+            };
+            if (!string.IsNullOrWhiteSpace(settings.CurrentApiKey))
+            {
+                secondReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.CurrentApiKey.Trim());
+            }
+
+            using var secondResp = await _httpClient.SendAsync(secondReq, cancellationToken);
+            if (secondResp.IsSuccessStatusCode)
+            {
+                var secondRaw = await secondResp.Content.ReadAsStringAsync(cancellationToken);
+                using var secondDoc = JsonDocument.Parse(secondRaw);
+                var secondChoice = secondDoc.RootElement.GetProperty("choices")[0];
+                var secondMsg = secondChoice.GetProperty("message");
+                if (secondMsg.TryGetProperty("content", out var finalContent) && finalContent.ValueKind == JsonValueKind.String)
+                {
+                    agentResponse.ReplyText = finalContent.GetString() ?? agentResponse.ReplyText;
+                }
             }
         }
-        catch
+        else
         {
-            // 如果解析失败，封装为普通文字消息返回
+            // 无 tool call，直接记录回复
+            conversationMessages.Add(new JsonObject
+            {
+                ["role"] = "assistant",
+                ["content"] = textContent
+            });
         }
 
-        return new AiExtractedSchedule
-        {
-            Message = content
-        };
+        return agentResponse;
     }
 }
