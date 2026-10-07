@@ -1,0 +1,8 @@
+id: memz.ci.automation
+name: CI自动化
+description: 接入AI大模型，支持上传课表图片自动解析配置科目、作息时间表与课表，支持自然语言调整软件设置项。
+entranceAssembly: "ClassIsland.Automation.V2.dll"
+url: https://space.bilibili.com/1353783215
+apiVersion: 2.0.0.0
+version: 1.0.0.0
+author: MEMZ-Chrome

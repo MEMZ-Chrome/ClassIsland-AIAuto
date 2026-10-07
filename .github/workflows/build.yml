@@ -1,0 +1,53 @@
+name: CI Build & Release
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ClassIsland Plugins (1.x & 2.x)
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET 8.0 SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore ClassIsland.Automation.sln
+
+    - name: Build Core
+      run: dotnet build ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj -c Release --no-restore
+
+    - name: Build ClassIsland 2.x Plugin
+      run: dotnet build ClassIsland.Automation.V2\ClassIsland.Automation.V2.csproj -c Release --no-restore
+
+    - name: Build ClassIsland 1.x Plugin
+      run: dotnet build ClassIsland.Automation.V1\ClassIsland.Automation.V1.csproj -c Release --no-restore
+
+    - name: Package 2.x Output
+      run: |
+        mkdir dist\v2
+        Copy-Item -Path "ClassIsland.Automation.V2\bin\Release\net8.0\*" -Destination "dist\v2\" -Recurse -Force
+        Compress-Archive -Path "dist\v2\*" -DestinationPath "dist\ClassIsland.Automation.V2.zip"
+
+    - name: Package 1.x Output
+      run: |
+        mkdir dist\v1
+        Copy-Item -Path "ClassIsland.Automation.V1\bin\Release\net8.0-windows\*" -Destination "dist\v1\" -Recurse -Force
+        Compress-Archive -Path "dist\v1\*" -DestinationPath "dist\ClassIsland.Automation.V1.zip"
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ClassIsland-Automation-Plugins
+        path: dist\*.zip
