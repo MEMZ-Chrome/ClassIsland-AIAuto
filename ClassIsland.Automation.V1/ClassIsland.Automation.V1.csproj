@@ -15,7 +15,9 @@
     <PackageReference Include="ClassIsland.PluginSdk" Version="1.7.0">
       <ExcludeAssets>runtime; native</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5">
+      <ExcludeAssets>runtime; native</ExcludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <ItemGroup>
