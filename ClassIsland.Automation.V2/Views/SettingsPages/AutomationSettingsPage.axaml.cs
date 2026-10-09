@@ -15,6 +15,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
     private readonly PluginSettings _settings;
     private readonly string _settingsFilePath;
     private readonly AiClientService _aiClient = new();
+    private bool _isUpdatingUi = false;
 
     public AutomationSettingsPage()
     {
@@ -26,6 +27,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         _settings = LoadSettings();
 
         InitControls();
+        Unloaded += (_, _) => AutoSave();
     }
 
     private PluginSettings LoadSettings()
@@ -48,12 +50,19 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_settingsFilePath, json);
-            if (StatusTextBlock != null) StatusTextBlock.Text = "设置已保存！";
+            if (StatusTextBlock != null) StatusTextBlock.Text = "设置已自动保存！";
         }
         catch (Exception ex)
         {
             if (StatusTextBlock != null) StatusTextBlock.Text = $"保存失败: {ex.Message}";
         }
+    }
+
+    private void AutoSave()
+    {
+        if (_isUpdatingUi) return;
+        SyncFromInputs();
+        SaveSettingsToFile();
     }
 
     private void InitControls()
@@ -65,6 +74,26 @@ public partial class AutomationSettingsPage : SettingsPageBase
         }
 
         UpdateInputsForProvider();
+
+        // 监听输入控件改变自动保存
+        if (BaseUrlTextBox != null)
+        {
+            BaseUrlTextBox.LostFocus += (_, _) => AutoSave();
+        }
+
+        if (ApiKeyTextBox != null)
+        {
+            ApiKeyTextBox.LostFocus += (_, _) => AutoSave();
+        }
+
+        if (ModelComboBox != null)
+        {
+            ModelComboBox.SelectionChanged += (_, _) =>
+            {
+                if (!_isUpdatingUi) AutoSave();
+            };
+            ModelComboBox.LostFocus += (_, _) => AutoSave();
+        }
 
         if (FetchModelsButton != null)
         {
@@ -83,40 +112,54 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
     private void OnProviderChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_isUpdatingUi) return;
         SyncFromInputs();
         _settings.Provider = (AiProviderType)(ProviderComboBox?.SelectedIndex ?? 0);
         UpdateInputsForProvider();
+        SaveSettingsToFile();
     }
 
     private void UpdateInputsForProvider()
     {
-        if (BaseUrlTextBox == null || ApiKeyTextBox == null || ModelComboBox == null) return;
+        _isUpdatingUi = true;
+        try
+        {
+            if (BaseUrlTextBox == null || ApiKeyTextBox == null || ModelComboBox == null) return;
 
-        BaseUrlTextBox.Text = _settings.CurrentBaseUrl;
-        ApiKeyTextBox.Text = _settings.CurrentApiKey;
-        ModelComboBox.SelectedItem = null;
-        ModelComboBox.Text = _settings.CurrentModel;
+            BaseUrlTextBox.Text = _settings.CurrentBaseUrl;
+            ApiKeyTextBox.Text = _settings.CurrentApiKey;
+
+            var currentModel = _settings.CurrentModel;
+            ModelComboBox.SelectedItem = currentModel;
+            ModelComboBox.Text = currentModel;
+        }
+        finally
+        {
+            _isUpdatingUi = false;
+        }
     }
 
     private void SyncFromInputs()
     {
-        var model = ModelComboBox?.Text ?? "";
+        // 兼容获取 ComboBox 选中的对象或手动输入的文本
+        var model = (ModelComboBox?.SelectedItem?.ToString() ?? ModelComboBox?.Text ?? "").Trim();
+
         switch (_settings.Provider)
         {
             case AiProviderType.MiMo:
-                _settings.MiMoBaseUrl = BaseUrlTextBox?.Text ?? "";
-                _settings.MiMoApiKey = ApiKeyTextBox?.Text ?? "";
-                _settings.MiMoModel = model;
+                _settings.MiMoBaseUrl = BaseUrlTextBox?.Text?.Trim() ?? "";
+                _settings.MiMoApiKey = ApiKeyTextBox?.Text?.Trim() ?? "";
+                if (!string.IsNullOrWhiteSpace(model)) _settings.MiMoModel = model;
                 break;
             case AiProviderType.DeepSeek:
-                _settings.DeepSeekBaseUrl = BaseUrlTextBox?.Text ?? "";
-                _settings.DeepSeekApiKey = ApiKeyTextBox?.Text ?? "";
-                _settings.DeepSeekModel = model;
+                _settings.DeepSeekBaseUrl = BaseUrlTextBox?.Text?.Trim() ?? "";
+                _settings.DeepSeekApiKey = ApiKeyTextBox?.Text?.Trim() ?? "";
+                if (!string.IsNullOrWhiteSpace(model)) _settings.DeepSeekModel = model;
                 break;
             default:
-                _settings.CustomBaseUrl = BaseUrlTextBox?.Text ?? "";
-                _settings.CustomApiKey = ApiKeyTextBox?.Text ?? "";
-                _settings.CustomModel = model;
+                _settings.CustomBaseUrl = BaseUrlTextBox?.Text?.Trim() ?? "";
+                _settings.CustomApiKey = ApiKeyTextBox?.Text?.Trim() ?? "";
+                if (!string.IsNullOrWhiteSpace(model)) _settings.CustomModel = model;
                 break;
         }
     }
@@ -131,13 +174,24 @@ public partial class AutomationSettingsPage : SettingsPageBase
             var models = await _aiClient.FetchModelsAsync(_settings.CurrentBaseUrl, _settings.CurrentApiKey);
             if (ModelComboBox != null)
             {
-                ModelComboBox.ItemsSource = models;
-                if (models.Count > 0)
+                _isUpdatingUi = true;
+                try
                 {
-                    ModelComboBox.SelectedIndex = 0;
+                    ModelComboBox.ItemsSource = models;
+                    if (models.Count > 0)
+                    {
+                        // 如果之前选中的模型在列表中，继续选中它；否则默认选第一个
+                        var existingIndex = models.IndexOf(_settings.CurrentModel);
+                        ModelComboBox.SelectedIndex = existingIndex >= 0 ? existingIndex : 0;
+                    }
                 }
+                finally
+                {
+                    _isUpdatingUi = false;
+                }
+                AutoSave();
             }
-            if (StatusTextBlock != null) StatusTextBlock.Text = $"成功获取 {models.Count} 个模型！";
+            if (StatusTextBlock != null) StatusTextBlock.Text = $"成功获取 {models.Count} 个模型并已自动保存！";
         }
         catch (Exception ex)
         {

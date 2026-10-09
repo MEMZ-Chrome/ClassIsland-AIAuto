@@ -1,7 +1,10 @@
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
+using System.Windows.Input;
+using System.Windows.Threading;
 using ClassIsland.Automation.Core.Models;
 using ClassIsland.Automation.Core.Services;
 using ClassIsland.Core.Abstractions.Services;
@@ -17,6 +20,7 @@ public partial class ChatWindow : Window
     private readonly IProfileService? _profileService;
     private readonly IUriNavigationService? _uriService;
     private readonly JsonArray _conversationMessages = new();
+    private readonly ObservableCollection<ChatMessageItem> _displayMessages = new();
 
     public ChatWindow(IProfileService? profileService = null, IUriNavigationService? uriService = null)
     {
@@ -24,34 +28,84 @@ public partial class ChatWindow : Window
         _profileService = profileService;
         _uriService = uriService;
 
+        if (MessagesItemsControl != null)
+        {
+            MessagesItemsControl.ItemsSource = _displayMessages;
+        }
+
         if (SelectImageButton != null) SelectImageButton.Click += OnSelectImageClicked;
         if (ClearImageButton != null) ClearImageButton.Click += OnClearImageClicked;
-        if (SendButton != null) SendButton.Click += OnSendClicked;
+        if (SendButton != null) SendButton.Click += (s, e) => SendCurrentMessage();
 
+        // 绑定回车发送事件（Enter 发送，Shift+Enter 换行）
+        if (InputTextBox != null)
+        {
+            InputTextBox.PreviewKeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
+                {
+                    e.Handled = true;
+                    SendCurrentMessage();
+                }
+            };
+        }
+
+        UpdateHeaderTime();
         InitConversation();
-        AppendLog("AI 助手已就绪（支持灵活 Tools Call 工具调用）。你可以上传课表图片让 AI 识别并调用对应工具写入，或直接用自然语言要求调整课表、调课及打开相关设置。");
+    }
+
+    private void UpdateHeaderTime()
+    {
+        var now = DateTime.Now;
+        var weekDayStr = ToolExecutor.GetChineseWeekDay(now.DayOfWeek);
+        if (CurrentTimeHeader != null)
+        {
+            CurrentTimeHeader.Text = $"今日：{now:yyyy-MM-dd} {weekDayStr}";
+        }
     }
 
     private void InitConversation()
     {
         _conversationMessages.Clear();
+        _displayMessages.Clear();
+
+        var now = DateTime.Now;
+        var todayStr = ToolExecutor.GetChineseWeekDay(now.DayOfWeek);
+        var tomorrow = now.AddDays(1);
+        var tomorrowStr = ToolExecutor.GetChineseWeekDay(tomorrow.DayOfWeek);
+
         _conversationMessages.Add(new JsonObject
         {
             ["role"] = "system",
-            ["content"] = "你是一个专门为 ClassIsland 课表信息显示软件服务的智能助手。" +
+            ["content"] = "你是一个专门为 ClassIsland 课表信息显示软件服务的智能助手。\n" +
+                          $"【当前系统真实时间】：{now:yyyy-MM-dd HH:mm:ss}，今天是【{todayStr}】。\n" +
+                          $"明天是：{tomorrow:yyyy-MM-dd}（{tomorrowStr}）。\n" +
                           "你可以根据用户的需求、上传的课表图片或指令，通过调用提供的工具来灵活管理科目 (upsert_subjects)、时间表 (create_time_layout)、" +
-                          "每日课表 (set_class_plan)、临时调课 (setup_temp_class_plan) 以及导航设置页面 (navigate_app_page)。" +
-                          "请在需要执行具体操作时主动使用对应工具，并在最后给出简明扼要的回复说明。"
+                          "每日课表 (set_class_plan)、查询课表详情 (get_schedule_details)、临时调课 (setup_temp_class_plan)、读取修改软件设置 (get_app_settings, update_app_settings) 以及导航设置页面 (navigate_app_page)。\n" +
+                          "【重要执行原则】：\n" +
+                          "1. 你具备全自主连续工具调用能力（ReAct），在必要时可自主连续调用工具（例如：先获取课表详情，再执行调课），无需让用户手动确认继续。\n" +
+                          "2. 当用户要求调课或提及“今天”、“明天”、“周几”时，请依据当前真实时间准确计算 targetDate，并调用 setup_temp_class_plan。\n" +
+                          "3. 当用户询问课表内容或需要确认课程时，请主动调用 get_schedule_details 查看确切课程安排。\n" +
+                          "4. 当用户要求修改设置或开关通知提醒时，请优先调用 update_app_settings 直接修改设置，无需让用户手动点击页面。\n" +
+                          "5. 操作完成后，请用清晰明了的中文给出最终回复。"
         });
+
+        _displayMessages.Add(new ChatMessageItem
+        {
+            Role = ChatRole.Assistant,
+            TimeString = now.ToString("HH:mm"),
+            Content = $"你好！我是 ClassIsland AI 助手。\n今天是 {now:yyyy-MM-dd}（{todayStr}）。你可以：\n• 直接自然语言吩咐调课（如“把明天的第一节课改成化学”）\n• 询问课表安排（如“看看周六有什么课”）\n• 开关设置或静音提醒（直接通过接口修改生效）\n• 上传课表图片自动解析录入"
+        });
+
+        ScrollToBottom();
     }
 
-    private void AppendLog(string message)
+    private void ScrollToBottom()
     {
-        if (ChatOutputTextBox != null)
+        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
         {
-            ChatOutputTextBox.Text += $"[{DateTime.Now:HH:mm:ss}] {message}\n\n";
-            LogScrollViewer?.ScrollToEnd();
-        }
+            ChatScrollViewer?.ScrollToEnd();
+        }));
     }
 
     private void OnSelectImageClicked(object? sender, RoutedEventArgs e)
@@ -78,7 +132,6 @@ public partial class ChatWindow : Window
             var fileName = Path.GetFileName(filePath);
             if (ImageStatusTextBlock != null) ImageStatusTextBlock.Text = $"已选择: {fileName}";
             if (ClearImageButton != null) ClearImageButton.Visibility = Visibility.Visible;
-            AppendLog($"已加载图片文件: {fileName} ({_selectedImageBytes.Length / 1024} KB)");
         }
     }
 
@@ -89,12 +142,11 @@ public partial class ChatWindow : Window
         if (ClearImageButton != null) ClearImageButton.Visibility = Visibility.Collapsed;
     }
 
-    private async void OnSendClicked(object? sender, RoutedEventArgs e)
+    private async void SendCurrentMessage()
     {
         var prompt = InputTextBox?.Text?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(prompt) && (_selectedImageBytes == null || _selectedImageBytes.Length == 0))
         {
-            AppendLog("请输入指令或选择图片后再发送。");
             return;
         }
 
@@ -112,13 +164,18 @@ public partial class ChatWindow : Window
 
         if (string.IsNullOrWhiteSpace(settings.CurrentModel))
         {
-            AppendLog("未配置 AI 模型！请先在【设置 -> CI自动化】中选择提供商并设置模型。");
+            _displayMessages.Add(new ChatMessageItem
+            {
+                Role = ChatRole.System,
+                TimeString = DateTime.Now.ToString("HH:mm"),
+                Content = "未配置 AI 模型！请先在【设置 -> CI自动化】中选择提供商并设置模型。"
+            });
+            ScrollToBottom();
             return;
         }
 
-        // 构造用户消息
-        var userMsgContent = new JsonArray();
         var textContent = string.IsNullOrWhiteSpace(prompt) ? "请分析这张课表图片，并调用相应工具完成课表配置。" : prompt;
+        var userMsgContent = new JsonArray();
         userMsgContent.Add(new JsonObject
         {
             ["type"] = "text",
@@ -138,14 +195,54 @@ public partial class ChatWindow : Window
             });
         }
 
+        // 刷新系统时间提示
+        var now = DateTime.Now;
+        var todayStr = ToolExecutor.GetChineseWeekDay(now.DayOfWeek);
+        var tomorrow = now.AddDays(1);
+        var tomorrowStr = ToolExecutor.GetChineseWeekDay(tomorrow.DayOfWeek);
+
+        if (_conversationMessages.Count > 0 && _conversationMessages[0]?["role"]?.GetValue<string>() == "system")
+        {
+            _conversationMessages[0]!["content"] =
+                "你是一个专门为 ClassIsland 课表信息显示软件服务的智能助手。\n" +
+                $"【当前系统真实时间】：{now:yyyy-MM-dd HH:mm:ss}，今天是【{todayStr}】。\n" +
+                $"明天是：{tomorrow:yyyy-MM-dd}（{tomorrowStr}）。\n" +
+                "你可以根据用户的需求、上传的课表图片或指令，通过调用提供的工具来灵活管理科目 (upsert_subjects)、时间表 (create_time_layout)、" +
+                "每日课表 (set_class_plan)、查询课表详情 (get_schedule_details)、临时调课 (setup_temp_class_plan)、读取修改软件设置 (get_app_settings, update_app_settings) 以及导航设置页面 (navigate_app_page)。\n" +
+                "【重要执行原则】：\n" +
+                "1. 你具备全自主连续工具调用能力（ReAct），在必要时可自主连续调用工具（例如：先获取课表详情，再执行调课），无需让用户手动确认继续。\n" +
+                "2. 当用户要求调课或提及“今天”、“明天”、“周几”时，请依据当前真实时间准确计算 targetDate，并调用 setup_temp_class_plan。\n" +
+                "3. 当用户询问课表内容或需要确认课程时，请主动调用 get_schedule_details 查看确切课程安排。\n" +
+                "4. 当用户要求修改设置或开关通知提醒时，请优先调用 update_app_settings 直接修改设置，无需让用户手动点击页面。\n" +
+                "5. 操作完成后，请用清晰明了的中文给出最终回复。";
+        }
+
         _conversationMessages.Add(new JsonObject
         {
             ["role"] = "user",
             ["content"] = userMsgContent
         });
 
-        AppendLog($"[用户] {textContent}");
-        AppendLog($"正在请求 AI 模型 ({settings.CurrentModel})，等待工具调用与处理...");
+        _displayMessages.Add(new ChatMessageItem
+        {
+            Role = ChatRole.User,
+            TimeString = now.ToString("HH:mm"),
+            Content = textContent
+        });
+
+        if (InputTextBox != null) InputTextBox.Text = "";
+        OnClearImageClicked(null, null);
+
+        var assistantMsg = new ChatMessageItem
+        {
+            Role = ChatRole.Assistant,
+            TimeString = now.ToString("HH:mm"),
+            Content = "正在思考中...",
+            IsThinking = true
+        };
+        _displayMessages.Add(assistantMsg);
+        ScrollToBottom();
+
         if (SendButton != null) SendButton.IsEnabled = false;
 
         try
@@ -154,25 +251,25 @@ public partial class ChatWindow : Window
             var response = await _aiClient.ExecuteAgentTurnAsync(
                 settings,
                 _conversationMessages,
-                executor);
+                executor,
+                onProgress: (statusText, execResult) =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        assistantMsg.AddToolBadge(statusText);
+                        ScrollToBottom();
+                    });
+                });
 
-            foreach (var exec in response.ExecutedResults)
-            {
-                var status = exec.Success ? "成功" : "失败";
-                AppendLog($"[工具调用: {exec.Name}] 状态: {status}\n执行结果: {exec.Result}");
-            }
-
-            if (!string.IsNullOrWhiteSpace(response.ReplyText))
-            {
-                AppendLog($"[AI] {response.ReplyText}");
-            }
-
-            if (InputTextBox != null) InputTextBox.Text = "";
-            OnClearImageClicked(null, null);
+            assistantMsg.IsThinking = false;
+            assistantMsg.Content = string.IsNullOrWhiteSpace(response.ReplyText) ? "操作已执行完毕。" : response.ReplyText;
+            ScrollToBottom();
         }
         catch (Exception ex)
         {
-            AppendLog($"发生错误: {ex.Message}");
+            assistantMsg.IsThinking = false;
+            assistantMsg.Content = $"请求处理失败: {ex.Message}";
+            ScrollToBottom();
         }
         finally
         {

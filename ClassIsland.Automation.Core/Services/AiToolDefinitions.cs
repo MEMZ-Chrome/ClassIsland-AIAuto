@@ -15,7 +15,7 @@ public static class AiToolDefinitions
                 ["function"] = new JsonObject
                 {
                     ["name"] = "get_profile_summary",
-                    ["description"] = "获取当前 ClassIsland 档案中的科目列表、时间表和课表概况",
+                    ["description"] = "获取当前 ClassIsland 档案中的科目列表、时间表和课表概况（仅名称概要）",
                     ["parameters"] = new JsonObject
                     {
                         ["type"] = "object",
@@ -25,7 +25,36 @@ public static class AiToolDefinitions
                 }
             },
 
-            // 2. 添加或更新科目
+            // 2. 获取指定课表或时间表的详细信息
+            new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "get_schedule_details",
+                    ["description"] = "获取课表与作息时间表的具体详细内容（包含各节次的序号、时间段、科目全称、任课老师及临时层预定状态，当用户询问具体某天课程安排或调课前需核实课表时使用）",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["planName"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "课表名称或对应星期（例如：周三、周六、星期五），留空则返回所有课表或当天生效课表的详细信息"
+                            },
+                            ["targetDate"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "可选，指定查询日期（例如：today、tomorrow、今天、明天、2026-10-10等）"
+                            }
+                        },
+                        ["required"] = new JsonArray()
+                    }
+                }
+            },
+
+            // 3. 添加或更新科目
             new JsonObject
             {
                 ["type"] = "function",
@@ -61,7 +90,7 @@ public static class AiToolDefinitions
                 }
             },
 
-            // 3. 创建或更新时间表
+            // 4. 创建或更新时间表
             new JsonObject
             {
                 ["type"] = "function",
@@ -98,20 +127,20 @@ public static class AiToolDefinitions
                 }
             },
 
-            // 4. 配置每日课表
+            // 5. 配置每日课表
             new JsonObject
             {
                 ["type"] = "function",
                 ["function"] = new JsonObject
                 {
                     ["name"] = "set_class_plan",
-                    ["description"] = "创建或更新某天（如周一到周日）的课表课程安排",
+                    ["description"] = "创建或更新某天（如周一到周日）的固定课表课程安排",
                     ["parameters"] = new JsonObject
                     {
                         ["type"] = "object",
                         ["properties"] = new JsonObject
                         {
-                            ["planName"] = new JsonObject { ["type"] = "string", ["description"] = "课表名称，如 星期一、星期二、周三" },
+                            ["planName"] = new JsonObject { ["type"] = "string", ["description"] = "课表名称，如 星期一、星期二、周三、周六" },
                             ["timeLayoutName"] = new JsonObject { ["type"] = "string", ["description"] = "绑定的时间表名称，留空则默认绑定第一套时间表" },
                             ["classes"] = new JsonObject
                             {
@@ -125,40 +154,145 @@ public static class AiToolDefinitions
                 }
             },
 
-            // 5. 设置临时调课/临时课表
+            // 6. 设置临时调课/临时课表
             new JsonObject
             {
                 ["type"] = "function",
                 ["function"] = new JsonObject
                 {
                     ["name"] = "setup_temp_class_plan",
-                    ["description"] = "设置或调整当天的临时课表（如某节课调课、自习课替换）",
+                    ["description"] = "设置或调整指定日期的临时调课/临时课表（支持指定节次单科调课或整天课程替换，调课后立即激活为当天生效的临时课表）",
                     ["parameters"] = new JsonObject
                     {
                         ["type"] = "object",
                         ["properties"] = new JsonObject
                         {
-                            ["sourcePlanName"] = new JsonObject { ["type"] = "string", ["description"] = "基础课表名称（如 星期二）" },
+                            ["sourcePlanName"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "基础课表名称或星期，例如：周三、周六、星期五"
+                            },
+                            ["dayOfWeek"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "星期几（与 sourcePlanName 等效，例如：周三、周六）"
+                            },
+                            ["targetDate"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "调课生效的目标日期（例如：today、tomorrow、今天、明天、周六、2026-10-10等，留空默认今天）"
+                            },
+                            ["classIndex"] = new JsonObject
+                            {
+                                ["type"] = "integer",
+                                ["description"] = "要调整的节次序号（1 表示第 1 节课，2 表示第 2 节课，依此类推；也可以传 0 表示第 1 节）"
+                            },
+                            ["subject"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "调整后的新科目名称（如：化学、数学、自习）"
+                            },
                             ["modifiedClasses"] = new JsonObject
                             {
                                 ["type"] = "array",
-                                ["description"] = "修改后的完整或局部节次课程列表",
+                                ["description"] = "修改后的完整节次科目列表（若已指定 classIndex 和 subject 则优先使用单科替换）",
                                 ["items"] = new JsonObject { ["type"] = "string" }
                             }
                         },
-                        ["required"] = new JsonArray { "sourcePlanName", "modifiedClasses" }
+                        ["required"] = new JsonArray()
                     }
                 }
             },
 
-            // 6. 导航应用页面或修改设置
+            // 7. 读取应用全局设置（直接调接口）
+            new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "get_app_settings",
+                    ["description"] = "直接通过服务接口获取 ClassIsland 的应用设置（如通知开关、深色/浅色主题模式、窗口透明度、界面缩放、全屏/上课隐藏状态等）",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject(),
+                        ["required"] = new JsonArray()
+                    }
+                }
+            },
+
+            // 8. 修改应用全局设置（直接调接口即时生效，无需用户点击）
+            new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "update_app_settings",
+                    ["description"] = "直接通过底层接口修改 ClassIsland 的应用设置并即时保存生效，无需用户手动在设置页面点击（例如开启/关闭通知、切换深色/浅色主题、调整透明度与缩放、上课/全屏隐藏等）",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["isNotificationEnabled"] = new JsonObject
+                            {
+                                ["type"] = "boolean",
+                                ["description"] = "通知总开关（true 为开启提醒，false 为静音/关闭提醒）"
+                            },
+                            ["theme"] = new JsonObject
+                            {
+                                ["type"] = "integer",
+                                ["description"] = "主题外观模式：0 为跟随系统，1 为浅色模式，2 为深色模式"
+                            },
+                            ["opacity"] = new JsonObject
+                            {
+                                ["type"] = "number",
+                                ["description"] = "窗口不透明度（0.1 到 1.0）"
+                            },
+                            ["scale"] = new JsonObject
+                            {
+                                ["type"] = "number",
+                                ["description"] = "界面缩放比例（0.5 到 2.0）"
+                            },
+                            ["hideOnClass"] = new JsonObject
+                            {
+                                ["type"] = "boolean",
+                                ["description"] = "上课时是否自动隐藏悬浮窗"
+                            },
+                            ["hideOnFullscreen"] = new JsonObject
+                            {
+                                ["type"] = "boolean",
+                                ["description"] = "全屏应用运行时是否自动隐藏悬浮窗"
+                            },
+                            ["isClassPrepareNotificationEnabled"] = new JsonObject
+                            {
+                                ["type"] = "boolean",
+                                ["description"] = "是否开启上课预备提醒"
+                            },
+                            ["isClassOffNotificationEnabled"] = new JsonObject
+                            {
+                                ["type"] = "boolean",
+                                ["description"] = "是否开启下课提醒"
+                            },
+                            ["customSettings"] = new JsonObject
+                            {
+                                ["type"] = "object",
+                                ["description"] = "其他支持的任意设置项键值对"
+                            }
+                        },
+                        ["required"] = new JsonArray()
+                    }
+                }
+            },
+
+            // 9. 导航应用页面或打开功能页
             new JsonObject
             {
                 ["type"] = "function",
                 ["function"] = new JsonObject
                 {
                     ["name"] = "navigate_app_page",
-                    ["description"] = "通过 classisland:// 内部协议打开指定设置或功能页面",
+                    ["description"] = "当用户明确要求打开设置窗口界面或插件页面时，通过 classisland:// 内部协议跳转打开页面",
                     ["parameters"] = new JsonObject
                     {
                         ["type"] = "object",
