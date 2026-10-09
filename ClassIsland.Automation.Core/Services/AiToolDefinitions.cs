@@ -240,6 +240,11 @@ public static class AiToolDefinitions
                         ["type"] = "object",
                         ["properties"] = new JsonObject
                         {
+                            ["timeOffsetSeconds"] = new JsonObject
+                            {
+                                ["type"] = "number",
+                                ["description"] = "时间偏移量（单位：秒，支持正数或负数，例如 10、-5、0）。设定课程时间与实际时间的偏移值。增大偏移以抵消铃声提前，减小偏移以抵消铃声滞后。"
+                            },
                             ["isNotificationEnabled"] = new JsonObject
                             {
                                 ["type"] = "boolean",

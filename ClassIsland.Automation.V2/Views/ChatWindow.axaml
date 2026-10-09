@@ -1,15 +1,18 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:ClassIsland.Automation.Core.Models;assembly=ClassIsland.Automation.Core"
+        xmlns:mdxaml="https://github.com/whistyun/Markdown.Avalonia"
+        xmlns:helpers="clr-namespace:ClassIsland.Core.Helpers;assembly=ClassIsland.Core"
+        xmlns:avalonia="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
         x:Class="ClassIsland.Automation.V2.Views.ChatWindow"
-        Title="AI 助手 - CI 自动化" Width="600" Height="700"
+        Title="AI 助手 - CI 自动化" Width="640" Height="720"
         WindowStartupLocation="CenterScreen">
     <Grid RowDefinitions="Auto, *, Auto, Auto" Margin="16">
         <!-- 头部说明与状态 -->
         <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
             <StackPanel Spacing="2">
                 <TextBlock Text="AI 助手" FontSize="18" FontWeight="Bold"/>
-                <TextBlock Name="HeaderSubTitle" Text="支持连续智能调课、课表问答与设置导航" FontSize="12" Foreground="Gray"/>
+                <TextBlock Name="HeaderSubTitle" Text="支持连续智能调课、课表问答与设置调整（时间偏移、通知、主题等）" FontSize="12" Foreground="Gray"/>
             </StackPanel>
             <TextBlock Name="CurrentTimeHeader" Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="Gray"/>
         </Grid>
@@ -24,7 +27,7 @@
                         <DataTemplate DataType="models:ChatMessageItem">
                             <Grid Margin="0,6">
                                 <!-- 用户消息气泡（右对齐） -->
-                                <StackPanel IsVisible="{Binding IsUser}" HorizontalAlignment="Right" MaxWidth="440" Margin="30,0,0,0">
+                                <StackPanel IsVisible="{Binding IsUser}" HorizontalAlignment="Right" MaxWidth="460" Margin="30,0,0,0">
                                     <TextBlock Text="{Binding TimeString}" FontSize="11" Foreground="Gray" HorizontalAlignment="Right" Margin="0,0,4,2"/>
                                     <Border Background="{DynamicResource AccentFillColorDefaultBrush}"
                                             CornerRadius="14,14,2,14" Padding="12,8">
@@ -33,8 +36,8 @@
                                     </Border>
                                 </StackPanel>
 
-                                <!-- AI 助手消息气泡（左对齐） -->
-                                <StackPanel IsVisible="{Binding IsAssistant}" HorizontalAlignment="Left" MaxWidth="460" Margin="0,0,30,0">
+                                <!-- AI 助手消息气泡（左对齐，支持 Markdown 表格与排版渲染） -->
+                                <StackPanel IsVisible="{Binding IsAssistant}" HorizontalAlignment="Left" MaxWidth="500" Margin="0,0,30,0">
                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0,0,2">
                                         <TextBlock Text="🤖 AI 助手" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                         <TextBlock Text="{Binding TimeString}" FontSize="11" Foreground="Gray"/>
@@ -56,8 +59,23 @@
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
 
-                                            <!-- 消息文本 -->
-                                            <SelectableTextBlock Text="{Binding Content}" TextWrapping="Wrap" FontSize="14"/>
+                                            <!-- 消息文本（Markdown 富文本渲染：表格、加粗、列表、代码块） -->
+                                            <mdxaml:MarkdownScrollViewer
+                                                Engine="{x:Static helpers:MarkdownConvertHelper.Engine}"
+                                                Markdown="{Binding Content}"
+                                                Background="Transparent">
+                                                <mdxaml:MarkdownScrollViewer.Styles>
+                                                    <StyleInclude Source="avares://ClassIsland.Core/Themes/RichTextStyles.axaml"/>
+                                                    <Style Selector="mdxaml|MarkdownScrollViewer">
+                                                        <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
+                                                        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+                                                    </Style>
+                                                    <Style Selector="avalonia|CTextBlock">
+                                                        <Setter Property="FontSize" Value="14"/>
+                                                        <Setter Property="Margin" Value="0,0,0,4"/>
+                                                    </Style>
+                                                </mdxaml:MarkdownScrollViewer.Styles>
+                                            </mdxaml:MarkdownScrollViewer>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -86,7 +104,7 @@
         <!-- 输入与发送（支持回车发送，Shift+Enter换行） -->
         <Grid Grid.Row="3" ColumnDefinitions="*, Auto">
             <TextBox Name="InputTextBox"
-                     Watermark="输入你的需求（例如：'把明天的第一节课改成化学'，Enter 发送，Shift+Enter 换行）..."
+                     Watermark="输入你的需求（例如：'把明天的第一节和最后一节课改成化学'，Enter 发送，Shift+Enter 换行）..."
                      AcceptsReturn="True" MaxHeight="100"/>
             <Button Name="SendButton" Grid.Column="1" Content="发送" Margin="8,0,0,0" Classes="accent"
                     VerticalAlignment="Bottom"/>

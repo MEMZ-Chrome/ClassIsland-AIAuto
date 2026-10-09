@@ -2,7 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:ClassIsland.Automation.Core.Models;assembly=ClassIsland.Automation.Core"
-        Title="AI 助手 - CI 自动化" Width="600" Height="700"
+        xmlns:mdXaml="clr-namespace:MdXaml;assembly=MdXaml"
+        Title="AI 助手 - CI 自动化" Width="640" Height="720"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="16">
         <Grid.RowDefinitions>
@@ -20,7 +21,7 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="AI 助手" FontSize="18" FontWeight="Bold"/>
-                <TextBlock Text="支持连续智能调课、课表问答与设置修改" FontSize="12" Foreground="Gray" Margin="0,2,0,0"/>
+                <TextBlock Text="支持连续智能调课、课表问答与设置调整（时间偏移、通知、主题等）" FontSize="12" Foreground="Gray" Margin="0,2,0,0"/>
             </StackPanel>
             <TextBlock Name="CurrentTimeHeader" Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="Gray"/>
         </Grid>
@@ -33,7 +34,7 @@
                         <DataTemplate DataType="{x:Type models:ChatMessageItem}">
                             <Grid Margin="0,6">
                                 <!-- 用户消息气泡（右对齐） -->
-                                <StackPanel HorizontalAlignment="Right" MaxWidth="440" Margin="30,0,0,0">
+                                <StackPanel HorizontalAlignment="Right" MaxWidth="460" Margin="30,0,0,0">
                                     <StackPanel.Style>
                                         <Style TargetType="StackPanel">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -52,8 +53,8 @@
                                     </Border>
                                 </StackPanel>
 
-                                <!-- AI 助手消息气泡（左对齐） -->
-                                <StackPanel HorizontalAlignment="Left" MaxWidth="460" Margin="0,0,30,0">
+                                <!-- AI 助手消息气泡（左对齐，支持 Markdown 表格与富文本排版） -->
+                                <StackPanel HorizontalAlignment="Left" MaxWidth="500" Margin="0,0,30,0">
                                     <StackPanel.Style>
                                         <Style TargetType="StackPanel">
                                             <Setter Property="Visibility" Value="Collapsed"/>
@@ -93,10 +94,14 @@
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
 
-                                            <!-- 消息文本 -->
-                                            <TextBox Text="{Binding Content, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"
-                                                     BorderThickness="0" Background="Transparent" Foreground="#111" FontSize="14"
-                                                     Cursor="Arrow" Margin="0,4,0,0"/>
+                                            <!-- 消息文本（Markdown 富文本，包含表格、列表、加粗） -->
+                                            <mdXaml:MarkdownScrollViewer
+                                                Markdown="{Binding Content}"
+                                                ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                                ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                IsToolBarVisible="False"
+                                                Background="Transparent"
+                                                Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>

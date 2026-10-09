@@ -596,6 +596,7 @@ public class ToolExecutor
         var resultObj = new JsonObject();
         var type = settingsObj.GetType();
         string[] keyProps = [
+            "TimeOffsetSeconds",
             "IsNotificationEnabled", "Theme", "Opacity", "Scale",
             "HideOnClass", "HideOnFullscreen", "HideOnMaxWindow",
             "ShowDate", "IsDebugEnabled", "SelectedProfile",
@@ -650,6 +651,16 @@ public class ToolExecutor
                 var converted = Convert.ChangeType(value, p.PropertyType);
                 p.SetValue(settingsObj, converted);
                 updatedList.Add($"{propName} = {value}");
+            }
+        }
+
+        if ((args.TryGetPropertyValue("timeOffsetSeconds", out var toNode) ||
+             args.TryGetPropertyValue("timeOffset", out toNode) ||
+             args.TryGetPropertyValue("offset", out toNode)) && toNode != null)
+        {
+            if (double.TryParse(toNode.ToString(), out var parsedSeconds))
+            {
+                TrySetProp("TimeOffsetSeconds", parsedSeconds);
             }
         }
 
