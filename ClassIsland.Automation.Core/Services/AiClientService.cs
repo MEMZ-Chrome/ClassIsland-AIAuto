@@ -76,7 +76,6 @@ public class AiClientService
         var chatUrl = baseUrl.EndsWith("/chat/completions") ? baseUrl : $"{baseUrl}/chat/completions";
 
         var agentResponse = new AgentChatResponse();
-        var tools = AiToolDefinitions.GetAvailableTools();
 
         int iterations = 0;
         const int maxIterations = 8;
@@ -90,7 +89,7 @@ public class AiClientService
             {
                 ["model"] = settings.CurrentModel,
                 ["messages"] = conversationMessages.DeepClone(),
-                ["tools"] = tools,
+                ["tools"] = AiToolDefinitions.GetAvailableTools(),
                 ["tool_choice"] = "auto",
                 ["temperature"] = 0.2
             };

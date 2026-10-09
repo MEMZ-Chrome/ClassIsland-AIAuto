@@ -185,7 +185,13 @@ public static class AiToolDefinitions
                             ["classIndex"] = new JsonObject
                             {
                                 ["type"] = "integer",
-                                ["description"] = "要调整的节次序号（1 表示第 1 节课，2 表示第 2 节课，依此类推；也可以传 0 表示第 1 节）"
+                                ["description"] = "要调整的节次序号（1 表示第 1 节课，2 表示第 2 节课，依此类推；传 -1 可直接表示最后一节课）"
+                            },
+                            ["classIndices"] = new JsonObject
+                            {
+                                ["type"] = "array",
+                                ["description"] = "需要同时调整为该科目的多个节次序号（例如：[1, -1] 表示第一节和最后一节课，[1, 2] 等）",
+                                ["items"] = new JsonObject { ["type"] = "integer" }
                             },
                             ["subject"] = new JsonObject
                             {

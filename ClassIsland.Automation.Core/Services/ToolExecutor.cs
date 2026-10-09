@@ -490,20 +490,24 @@ public class ToolExecutor
         string changeDescription = "";
         var subMap = profile.Subjects.ToDictionary(kv => kv.Value.Name, kv => kv.Key, StringComparer.OrdinalIgnoreCase);
 
-        if (classIndex.HasValue && !string.IsNullOrWhiteSpace(subjectName))
+        var targetIndices = new List<int>();
+        if (args.TryGetPropertyValue("classIndices", out var cisNode) && cisNode is JsonArray cisArr)
         {
-            int targetIdx = classIndex.Value > 0 ? classIndex.Value - 1 : 0;
-            if (targetIdx < 0 || targetIdx >= tempPlan.Classes.Count)
+            foreach (var item in cisArr)
             {
-                return new ToolExecutionResult
+                if (item != null && int.TryParse(item.ToString(), out var ci))
                 {
-                    ToolCallId = toolId,
-                    Name = "setup_temp_class_plan",
-                    Success = false,
-                    Result = $"节次超出范围：指定了第 {classIndex.Value} 节，但该课表共只有 {tempPlan.Classes.Count} 节课。"
-                };
+                    targetIndices.Add(ci);
+                }
             }
+        }
+        else if (classIndex.HasValue)
+        {
+            targetIndices.Add(classIndex.Value);
+        }
 
+        if (targetIndices.Count > 0 && !string.IsNullOrWhiteSpace(subjectName))
+        {
             if (!subMap.TryGetValue(subjectName, out var targetSubGuid))
             {
                 targetSubGuid = Guid.NewGuid();
@@ -512,11 +516,20 @@ public class ToolExecutor
                 subMap[subjectName] = targetSubGuid;
             }
 
-            var oldSubName = profile.Subjects.TryGetValue(tempPlan.Classes[targetIdx].SubjectId, out var oldSub) ? oldSub.Name : "未定";
-            tempPlan.Classes[targetIdx].SubjectId = targetSubGuid;
-            tempPlan.Classes[targetIdx].IsChangedClass = true;
+            var changedSlots = new List<string>();
+            foreach (var ci in targetIndices)
+            {
+                int targetIdx = ci == -1 ? tempPlan.Classes.Count - 1 : (ci > 0 ? ci - 1 : 0);
+                if (targetIdx >= 0 && targetIdx < tempPlan.Classes.Count)
+                {
+                    var oldSubName = profile.Subjects.TryGetValue(tempPlan.Classes[targetIdx].SubjectId, out var oldSub) ? oldSub.Name : "未定";
+                    tempPlan.Classes[targetIdx].SubjectId = targetSubGuid;
+                    tempPlan.Classes[targetIdx].IsChangedClass = true;
+                    changedSlots.Add($"第 {targetIdx + 1} 节（原【{oldSubName}】）");
+                }
+            }
 
-            changeDescription = $"已将第 {targetIdx + 1} 节课程由【{oldSubName}】变更为【{subjectName}】";
+            changeDescription = $"已将 {string.Join(" 与 ", changedSlots)} 变更为【{subjectName}】";
         }
         else if (args.TryGetPropertyValue("modifiedClasses", out var modNode) && modNode is JsonArray modArr)
         {
