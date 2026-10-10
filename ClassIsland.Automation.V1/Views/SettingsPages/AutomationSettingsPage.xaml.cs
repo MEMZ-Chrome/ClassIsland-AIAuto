@@ -310,7 +310,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             var rowGrid = new Grid
             {
-                Margin = new Thickness(0, 2)
+                Margin = new Thickness(0, 2, 0, 2)
             };
             rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -330,7 +330,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             var delBtn = new Button
             {
                 Content = "✕",
-                Padding = new Thickness(8, 2),
+                Padding = new Thickness(8, 2, 8, 2),
                 VerticalAlignment = VerticalAlignment.Center
             };
             delBtn.Click += (_, _) =>
@@ -640,7 +640,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 var bi = new BitmapImage();
                 bi.BeginInit();
                 bi.StreamSource = ms;
-                bi.CacheOption = BitmapCreateOptions.None;
+                bi.CacheOption = BitmapCacheOption.OnLoad;
                 bi.EndInit();
                 TotpQrCodeImage.Source = bi;
             }
