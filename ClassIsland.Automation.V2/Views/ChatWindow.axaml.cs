@@ -236,6 +236,8 @@ public partial class ChatWindow : Window
             return;
         }
 
+        var now = DateTime.Now;
+
         // 构造用户消息
         var textContent = string.IsNullOrWhiteSpace(prompt) ? "请分析这张课表图片，并调用相应工具完成课表配置。" : prompt;
         var userMsgContent = new JsonArray();
