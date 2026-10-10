@@ -35,6 +35,46 @@
                 </StackPanel>
             </Border>
 
+            <!-- 高级设置卡片（提示词、记忆系统与命令行权限） -->
+            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Padding="16">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="高级设置与记忆库" FontSize="16" FontWeight="Bold"/>
+                    <TextBlock Text="配置自定义提示词、记忆偏好与系统权限。提示词保持静态可最大化提升 API 缓存命中率并显著降低 Token 消耗。" FontSize="12" Foreground="Gray"/>
+
+                    <!-- 功能权限开关 -->
+                    <StackPanel Spacing="8">
+                        <CheckBox Name="IsMemoryEnabledCheckBox" Content="启用 AI 长期记忆系统（允许 AI 记录并应用用户偏好与习惯）" IsChecked="True"/>
+                        <CheckBox Name="IsCommandExecutionEnabledCheckBox" Content="允许 AI 执行命令行命令（CMD / 脚本联动，实验性权限）"/>
+                        <TextBlock Text="⚠️ 命令行权限开启后，AI 可调用控制台执行终端指令，请仅在信任当前模型与操作时启用。" FontSize="11" Foreground="#E65100" Margin="28,-4,0,0"/>
+                    </StackPanel>
+
+                    <!-- 自定义系统提示词 -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="自定义系统提示词 (Prompt)" FontWeight="SemiBold"/>
+                        <TextBlock Text="追加到基础系统提示词末尾，用于定制 AI 角色性格、输出格式或特定业务规则" FontSize="11" Foreground="Gray"/>
+                        <TextBox Name="CustomPromptTextBox" AcceptsReturn="True" Height="80" TextWrapping="Wrap"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 Watermark="输入针对 AI 的额外要求，例如：'精简回答，不要废话'、'调课时提醒老师姓名'等..."/>
+                    </StackPanel>
+
+                    <!-- 长期记忆管理 -->
+                    <StackPanel Spacing="4">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <StackPanel>
+                                <TextBlock Text="AI 长期记忆库 (Memory)" FontWeight="SemiBold"/>
+                                <TextBlock Text="AI 自动记录的偏好与事实，也可在此直接查看、编辑、增加或删除" FontSize="11" Foreground="Gray"/>
+                            </StackPanel>
+                            <Button Name="ClearMemoryButton" Grid.Column="1" Content="清空记忆" VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBox Name="CustomMemoryTextBox" AcceptsReturn="True" Height="100" TextWrapping="Wrap"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 Watermark="长期记忆内容（如：- 班级：高三(2)班&#x0a;- 化学老师姓王&#x0a;- 周五下午提早放学）..."/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <Button Name="SaveButton" Content="保存设置" Classes="accent"/>
                 <TextBlock Name="StatusTextBlock" VerticalAlignment="Center" Foreground="Green"/>

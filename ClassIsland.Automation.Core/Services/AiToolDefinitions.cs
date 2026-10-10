@@ -1,12 +1,13 @@
 using System.Text.Json.Nodes;
+using ClassIsland.Automation.Core.Models;
 
 namespace ClassIsland.Automation.Core.Services;
 
 public static class AiToolDefinitions
 {
-    public static JsonArray GetAvailableTools()
+    public static JsonArray GetAvailableTools(PluginSettings? settings = null)
     {
-        return new JsonArray
+        var tools = new JsonArray
         {
             // 1. 获取当前档案概述
             new JsonObject
@@ -318,7 +319,91 @@ public static class AiToolDefinitions
                         ["required"] = new JsonArray { "pageUri" }
                     }
                 }
+            },
+
+            // 10. 获取当前系统真实时间与星期
+            new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "get_current_time",
+                    ["description"] = "获取 ClassIsland 当前系统的精确时间、日期、星期几（例如：2026-10-10 星期六）以及时间偏移量。当用户提到“今天”、“明天”、“周几”等相对时间概念时调用，确保调课或查询准确无误。",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject(),
+                        ["required"] = new JsonArray()
+                    }
+                }
             }
         };
+
+        // 11. 记录与更新 AI 长期记忆库（仅当启用记忆系统时可用）
+        if (settings == null || settings.IsMemoryEnabled)
+        {
+            tools.Add(new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "update_memory",
+                    ["description"] = "记录、追加、覆盖或清空关于用户、班级、老师信息或调课习惯的长期记忆。当用户要求“记住...”（如“记住化学老师是王老师”、“记住周五下午提早放学”）或交代了重要偏好时调用。",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["action"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["enum"] = new JsonArray { "add", "set", "clear" },
+                                ["description"] = "操作类型：add（追加一条新记忆）、set（覆盖全部记忆内容）、clear（清空所有记忆）"
+                            },
+                            ["content"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "记忆内容文本（例如：'班级：高三2班'、'化学老师是王老师'。action 为 clear 时可留空）"
+                            }
+                        },
+                        ["required"] = new JsonArray { "action" }
+                    }
+                }
+            });
+        }
+
+        // 12. 系统命令行执行权限（仅当用户在高级设置中显式启用时提供）
+        if (settings?.IsCommandExecutionEnabled == true)
+        {
+            tools.Add(new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "execute_command",
+                    ["description"] = "在系统终端执行命令行指令（仅在高级设置中启用了命令行执行权限时可用）。可用于系统查询、运行脚本、网络测试等操作。",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["command"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "要执行的命令行指令，例如 'ping baidu.com'、'shutdown -s -t 3600' 或系统批处理命令"
+                            },
+                            ["timeoutSeconds"] = new JsonObject
+                            {
+                                ["type"] = "integer",
+                                ["description"] = "可选，超时时间（秒），默认 15 秒"
+                            }
+                        },
+                        ["required"] = new JsonArray { "command" }
+                    }
+                }
+            });
+        }
+
+        return tools;
     }
 }

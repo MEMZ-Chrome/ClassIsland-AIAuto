@@ -28,8 +28,17 @@ public class PluginSettings
     public string CustomApiKey { get; set; } = "";
     public string CustomModel { get; set; } = "";
 
-    // 常用提示词/系统偏好
+    // 常用提示词/自定义系统提示词
     public string CustomPrompt { get; set; } = "";
+
+    // 长期记忆系统（AI 自动记录或用户自定义的偏好、习惯与背景事实）
+    public string CustomMemory { get; set; } = "";
+
+    // 是否启用记忆系统
+    public bool IsMemoryEnabled { get; set; } = true;
+
+    // 是否允许 AI 执行 CMD 命令行命令
+    public bool IsCommandExecutionEnabled { get; set; } = false;
 
     [JsonIgnore]
     public string CurrentBaseUrl => Provider switch

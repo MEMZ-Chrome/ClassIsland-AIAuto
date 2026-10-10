@@ -89,7 +89,7 @@ public class AiClientService
             {
                 ["model"] = settings.CurrentModel,
                 ["messages"] = conversationMessages.DeepClone(),
-                ["tools"] = AiToolDefinitions.GetAvailableTools(),
+                ["tools"] = AiToolDefinitions.GetAvailableTools(settings),
                 ["tool_choice"] = "auto",
                 ["temperature"] = 0.2
             };

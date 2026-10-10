@@ -103,7 +103,11 @@
         <Grid Grid.Row="3" ColumnDefinitions="*, Auto">
             <TextBox Name="InputTextBox"
                      Watermark="输入你的需求（例如：'把明天的第一节和最后一节课改成化学'，Enter 发送，Shift+Enter 换行）..."
-                     AcceptsReturn="True" MaxHeight="100"/>
+                     AcceptsReturn="True" TextWrapping="Wrap"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                     MinHeight="36" MaxHeight="120"
+                     VerticalContentAlignment="Center"/>
             <Button Name="SendButton" Grid.Column="1" Content="发送" Margin="8,0,0,0" Classes="accent"
                     VerticalAlignment="Bottom"/>
         </Grid>

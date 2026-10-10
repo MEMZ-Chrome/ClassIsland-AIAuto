@@ -11,11 +11,19 @@ public class ToolExecutor
 {
     private readonly IPublicProfileService? _profileService;
     private readonly IPublicUriNavigationService? _uriService;
+    private readonly PluginSettings? _pluginSettings;
+    private readonly Action? _onSavePluginSettings;
 
-    public ToolExecutor(IPublicProfileService? profileService, IPublicUriNavigationService? uriService = null)
+    public ToolExecutor(
+        IPublicProfileService? profileService,
+        IPublicUriNavigationService? uriService = null,
+        PluginSettings? pluginSettings = null,
+        Action? onSavePluginSettings = null)
     {
         _profileService = profileService;
         _uriService = uriService;
+        _pluginSettings = pluginSettings;
+        _onSavePluginSettings = onSavePluginSettings;
     }
 
     public ToolExecutionResult Execute(ToolCallInfo toolCall)
@@ -52,6 +60,15 @@ public class ToolExecutor
                 case "navigate_app_page":
                     return ExecuteNavigateAppPage(toolCall.Id, args);
 
+                case "get_current_time":
+                    return ExecuteGetCurrentTime(toolCall.Id);
+
+                case "update_memory":
+                    return ExecuteUpdateMemory(toolCall.Id, args);
+
+                case "execute_command":
+                    return ExecuteCommand(toolCall.Id, args);
+
                 default:
                     return new ToolExecutionResult
                     {
@@ -82,8 +99,11 @@ public class ToolExecutor
         }
 
         var p = _profileService.Profile;
+        var now = DateTime.Now;
         var summary = new JsonObject
         {
+            ["currentTime"] = now.ToString("yyyy-MM-dd HH:mm:ss"),
+            ["currentDayOfWeek"] = GetChineseWeekDay(now.DayOfWeek),
             ["profileName"] = p.Name,
             ["subjectCount"] = p.Subjects.Count,
             ["subjects"] = new JsonArray(p.Subjects.Values.Select(s => (JsonNode)s.Name).ToArray()),
@@ -782,6 +802,233 @@ public class ToolExecutor
         }
 
         return new ToolExecutionResult { ToolCallId = toolId, Name = "navigate_app_page", Success = false, Result = "导航服务不可用" };
+    }
+
+    private ToolExecutionResult ExecuteGetCurrentTime(string toolId)
+    {
+        var now = DateTime.Now;
+        var offsetSeconds = 0.0;
+
+        try
+        {
+            var settingsObj = GetAppHostSettingsObject();
+            if (settingsObj != null)
+            {
+                var prop = settingsObj.GetType().GetProperty("TimeOffsetSeconds");
+                if (prop != null && prop.GetValue(settingsObj) is double d)
+                {
+                    offsetSeconds = d;
+                }
+            }
+        }
+        catch { }
+
+        var exactNow = now.AddSeconds(offsetSeconds);
+        var todayChinese = GetChineseWeekDay(exactNow.DayOfWeek);
+        var tomorrow = exactNow.AddDays(1);
+        var tomorrowChinese = GetChineseWeekDay(tomorrow.DayOfWeek);
+
+        var result = new JsonObject
+        {
+            ["currentTime"] = exactNow.ToString("yyyy-MM-dd HH:mm:ss"),
+            ["currentDate"] = exactNow.ToString("yyyy-MM-dd"),
+            ["currentDayOfWeek"] = todayChinese,
+            ["dayOfWeekNumber"] = (int)exactNow.DayOfWeek,
+            ["tomorrowDate"] = tomorrow.ToString("yyyy-MM-dd"),
+            ["tomorrowDayOfWeek"] = tomorrowChinese,
+            ["isWeekend"] = exactNow.DayOfWeek == DayOfWeek.Saturday || exactNow.DayOfWeek == DayOfWeek.Sunday,
+            ["timeOffsetSeconds"] = offsetSeconds
+        };
+
+        return new ToolExecutionResult
+        {
+            ToolCallId = toolId,
+            Name = "get_current_time",
+            Success = true,
+            Result = result.ToJsonString()
+        };
+    }
+
+    private ToolExecutionResult ExecuteUpdateMemory(string toolId, JsonObject args)
+    {
+        if (_pluginSettings == null)
+        {
+            return new ToolExecutionResult
+            {
+                ToolCallId = toolId,
+                Name = "update_memory",
+                Success = false,
+                Result = "记忆系统存储配置未就绪"
+            };
+        }
+
+        if (!_pluginSettings.IsMemoryEnabled)
+        {
+            return new ToolExecutionResult
+            {
+                ToolCallId = toolId,
+                Name = "update_memory",
+                Success = false,
+                Result = "用户已在设置中关闭了 AI 记忆系统，无法写入或更新新记忆。"
+            };
+        }
+
+        var action = args["action"]?.GetValue<string>()?.ToLowerInvariant() ?? "add";
+        var content = args["content"]?.GetValue<string>()?.Trim() ?? "";
+
+        switch (action)
+        {
+            case "add":
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    return new ToolExecutionResult { ToolCallId = toolId, Name = "update_memory", Success = false, Result = "记忆内容不能为空" };
+                }
+                var currentMemory = _pluginSettings.CustomMemory?.Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(currentMemory))
+                {
+                    _pluginSettings.CustomMemory = $"- {content}";
+                }
+                else
+                {
+                    _pluginSettings.CustomMemory = $"{currentMemory}\n- {content}";
+                }
+                _onSavePluginSettings?.Invoke();
+                return new ToolExecutionResult
+                {
+                    ToolCallId = toolId,
+                    Name = "update_memory",
+                    Success = true,
+                    Result = $"已成功添加记忆：“{content}”。当前记忆已更新并已持久化保存。"
+                };
+
+            case "set":
+                _pluginSettings.CustomMemory = content;
+                _onSavePluginSettings?.Invoke();
+                return new ToolExecutionResult
+                {
+                    ToolCallId = toolId,
+                    Name = "update_memory",
+                    Success = true,
+                    Result = "已成功覆盖并更新全部记忆库内容。"
+                };
+
+            case "clear":
+                _pluginSettings.CustomMemory = "";
+                _onSavePluginSettings?.Invoke();
+                return new ToolExecutionResult
+                {
+                    ToolCallId = toolId,
+                    Name = "update_memory",
+                    Success = true,
+                    Result = "已清空所有长期记忆。"
+                };
+
+            default:
+                return new ToolExecutionResult
+                {
+                    ToolCallId = toolId,
+                    Name = "update_memory",
+                    Success = false,
+                    Result = $"不支持的操作类型: {action}，支持的操作为 add, set, clear。"
+                };
+        }
+    }
+
+    private ToolExecutionResult ExecuteCommand(string toolId, JsonObject args)
+    {
+        if (_pluginSettings?.IsCommandExecutionEnabled != true)
+        {
+            return new ToolExecutionResult
+            {
+                ToolCallId = toolId,
+                Name = "execute_command",
+                Success = false,
+                Result = "用户未在【设置 -> CI自动化 -> 高级设置】中开启“允许执行命令行命令”权限，命令已被系统拒绝执行。"
+            };
+        }
+
+        var cmd = args["command"]?.GetValue<string>()?.Trim();
+        if (string.IsNullOrWhiteSpace(cmd))
+        {
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "execute_command", Success = false, Result = "命令不能为空" };
+        }
+
+        var timeoutSec = 15;
+        if (args.TryGetPropertyValue("timeoutSeconds", out var toNode) && toNode != null)
+        {
+            if (int.TryParse(toNode.ToString(), out var parsedSec) && parsedSec > 0)
+            {
+                timeoutSec = Math.Min(parsedSec, 60);
+            }
+        }
+
+        try
+        {
+            using var process = new System.Diagnostics.Process();
+            process.StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = $"/c {cmd}",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                StandardOutputEncoding = System.Text.Encoding.Default,
+                StandardErrorEncoding = System.Text.Encoding.Default
+            };
+
+            process.Start();
+
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+
+            if (!process.WaitForExit(timeoutSec * 1000))
+            {
+                try { process.Kill(); } catch { }
+                return new ToolExecutionResult
+                {
+                    ToolCallId = toolId,
+                    Name = "execute_command",
+                    Success = false,
+                    Result = $"命令执行超时（超过 {timeoutSec} 秒），进程已终止。"
+                };
+            }
+
+            var stdout = stdoutTask.GetAwaiter().GetResult();
+            var stderr = stderrTask.GetAwaiter().GetResult();
+            var exitCode = process.ExitCode;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"退出代码: {exitCode}");
+            if (!string.IsNullOrWhiteSpace(stdout))
+            {
+                sb.AppendLine("【标准输出】:");
+                sb.AppendLine(stdout.Trim());
+            }
+            if (!string.IsNullOrWhiteSpace(stderr))
+            {
+                sb.AppendLine("【错误输出】:");
+                sb.AppendLine(stderr.Trim());
+            }
+
+            return new ToolExecutionResult
+            {
+                ToolCallId = toolId,
+                Name = "execute_command",
+                Success = exitCode == 0,
+                Result = sb.ToString().Trim()
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ToolExecutionResult
+            {
+                ToolCallId = toolId,
+                Name = "execute_command",
+                Success = false,
+                Result = $"执行异常: {ex.Message}"
+            };
+        }
     }
 
     private static DateTime ResolveTargetDate(string? dateQuery, string? planName)

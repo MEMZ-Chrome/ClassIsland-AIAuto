@@ -142,7 +142,11 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBox Name="InputTextBox" AcceptsReturn="True" MaxHeight="100" VerticalScrollBarVisibility="Auto" Padding="6"/>
+            <TextBox Name="InputTextBox" AcceptsReturn="True" TextWrapping="Wrap"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                     MinHeight="36" MaxHeight="120"
+                     VerticalContentAlignment="Center" Padding="6"/>
             <Button Name="SendButton" Grid.Column="1" Content="发送" Margin="8,0,0,0" Padding="16,6"
                     VerticalAlignment="Bottom"/>
         </Grid>

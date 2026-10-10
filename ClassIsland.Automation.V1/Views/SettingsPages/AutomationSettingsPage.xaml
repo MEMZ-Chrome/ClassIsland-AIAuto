@@ -37,6 +37,42 @@
                 </StackPanel>
             </Border>
 
+            <!-- 高级设置卡片（提示词、记忆系统与命令行权限） -->
+            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                <StackPanel>
+                    <TextBlock Text="高级设置与记忆库" FontSize="16" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBlock Text="配置自定义提示词、记忆偏好与系统权限。提示词保持静态可最大化提升 API 缓存命中率并显著降低 Token 消耗。" FontSize="12" Foreground="Gray" Margin="0,0,0,12"/>
+
+                    <!-- 功能权限开关 -->
+                    <StackPanel Margin="0,0,0,12">
+                        <CheckBox Name="IsMemoryEnabledCheckBox" Content="启用 AI 长期记忆系统（允许 AI 记录并应用用户偏好与习惯）" IsChecked="True" Margin="0,0,0,6"/>
+                        <CheckBox Name="IsCommandExecutionEnabledCheckBox" Content="允许 AI 执行命令行命令（CMD / 脚本联动，实验性权限）" Margin="0,0,0,2"/>
+                        <TextBlock Text="⚠️ 命令行权限开启后，AI 可调用控制台执行终端指令，请仅在信任当前模型与操作时启用。" FontSize="11" Foreground="#E65100" Margin="24,0,0,0"/>
+                    </StackPanel>
+
+                    <!-- 自定义系统提示词 -->
+                    <TextBlock Text="自定义系统提示词 (Prompt)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="追加到基础系统提示词末尾，用于定制 AI 角色性格、输出格式或特定业务规则" FontSize="11" Foreground="Gray" Margin="0,0,0,4"/>
+                    <TextBox Name="CustomPromptTextBox" AcceptsReturn="True" Height="80" TextWrapping="Wrap" Margin="0,0,0,12"
+                             VerticalScrollBarVisibility="Auto"/>
+
+                    <!-- 长期记忆管理 -->
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="AI 长期记忆库 (Memory)" FontWeight="SemiBold"/>
+                            <TextBlock Text="AI 自动记录的偏好与事实，也可在此直接查看、编辑、增加或删除" FontSize="11" Foreground="Gray"/>
+                        </StackPanel>
+                        <Button Name="ClearMemoryButton" Grid.Column="1" Content="清空记忆" Padding="8,2" VerticalAlignment="Center"/>
+                    </Grid>
+                    <TextBox Name="CustomMemoryTextBox" AcceptsReturn="True" Height="100" TextWrapping="Wrap" Margin="0,0,0,6"
+                             VerticalScrollBarVisibility="Auto"/>
+                </StackPanel>
+            </Border>
+
             <StackPanel Orientation="Horizontal">
                 <Button Name="SaveButton" Content="保存设置" Padding="16,6" Margin="0,0,12,0"/>
                 <TextBlock Name="StatusTextBlock" VerticalAlignment="Center" Foreground="Green"/>

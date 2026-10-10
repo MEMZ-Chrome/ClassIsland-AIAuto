@@ -109,6 +109,44 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 SaveSettingsToFile();
             };
         }
+
+        // 高级设置与记忆系统控件
+        if (IsMemoryEnabledCheckBox != null)
+        {
+            IsMemoryEnabledCheckBox.IsChecked = _settings.IsMemoryEnabled;
+            IsMemoryEnabledCheckBox.Checked += (_, _) => AutoSave();
+            IsMemoryEnabledCheckBox.Unchecked += (_, _) => AutoSave();
+        }
+
+        if (IsCommandExecutionEnabledCheckBox != null)
+        {
+            IsCommandExecutionEnabledCheckBox.IsChecked = _settings.IsCommandExecutionEnabled;
+            IsCommandExecutionEnabledCheckBox.Checked += (_, _) => AutoSave();
+            IsCommandExecutionEnabledCheckBox.Unchecked += (_, _) => AutoSave();
+        }
+
+        if (CustomPromptTextBox != null)
+        {
+            CustomPromptTextBox.Text = _settings.CustomPrompt;
+            CustomPromptTextBox.LostFocus += (_, _) => AutoSave();
+        }
+
+        if (CustomMemoryTextBox != null)
+        {
+            CustomMemoryTextBox.Text = _settings.CustomMemory;
+            CustomMemoryTextBox.LostFocus += (_, _) => AutoSave();
+        }
+
+        if (ClearMemoryButton != null)
+        {
+            ClearMemoryButton.Click += (_, _) =>
+            {
+                if (CustomMemoryTextBox != null) CustomMemoryTextBox.Text = "";
+                _settings.CustomMemory = "";
+                AutoSave();
+                if (StatusTextBlock != null) StatusTextBlock.Text = "长期记忆库已清空并保存！";
+            };
+        }
     }
 
     private void OnProviderChanged(object? sender, SelectionChangedEventArgs e)
@@ -162,6 +200,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 if (!string.IsNullOrWhiteSpace(model)) _settings.CustomModel = model;
                 break;
         }
+
+        // 同步高级设置与记忆库
+        _settings.IsMemoryEnabled = IsMemoryEnabledCheckBox?.IsChecked ?? true;
+        _settings.IsCommandExecutionEnabled = IsCommandExecutionEnabledCheckBox?.IsChecked ?? false;
+        _settings.CustomPrompt = CustomPromptTextBox?.Text?.Trim() ?? "";
+        _settings.CustomMemory = CustomMemoryTextBox?.Text?.Trim() ?? "";
     }
 
     private async void OnFetchModelsClicked(object? sender, RoutedEventArgs e)
