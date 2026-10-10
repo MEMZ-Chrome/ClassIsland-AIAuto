@@ -22,7 +22,7 @@
                 <StackPanel Spacing="8">
                     <TextBlock Text="请输入固定密码或 6 位 TOTP 动态验证码：" FontSize="13" FontWeight="SemiBold"/>
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBox Name="UnlockPasswordBox" PasswordChar="*" Watermark="输入密码或 6 位动态码" HorizontalAlignment="Stretch"/>
+                        <TextBox Name="UnlockPasswordBox" PasswordChar="*" Watermark="请输入文本..." HorizontalAlignment="Stretch"/>
                         <Button Name="UnlockButton" Grid.Column="1" Margin="8,0,0,0" Content="验证解锁" Classes="accent"/>
                     </Grid>
                     <TextBlock Name="UnlockErrorTextBlock" Foreground="#D32F2F" FontSize="12" IsVisible="False" TextWrapping="Wrap"/>
@@ -52,10 +52,10 @@
                         </ComboBox>
 
                         <TextBlock Text="API 地址 (Base URL)" FontWeight="SemiBold"/>
-                        <TextBox Name="BaseUrlTextBox" Watermark="https://api.xiaomimimo.com/v1"/>
+                        <TextBox Name="BaseUrlTextBox" Watermark="请输入文本..."/>
 
                         <TextBlock Text="API 密钥 (API Key - 自动加密存储，绝不明文落盘)" FontWeight="SemiBold"/>
-                        <TextBox Name="ApiKeyTextBox" PasswordChar="*" Watermark="输入对应服务商的 API Key"/>
+                        <TextBox Name="ApiKeyTextBox" PasswordChar="*" Watermark="请输入文本..."/>
 
                         <TextBlock Text="模型名称 (Model)" FontWeight="SemiBold"/>
                         <Grid ColumnDefinitions="*, Auto">
@@ -86,7 +86,7 @@
                             <TextBlock Text="追加到基础系统提示词末尾，用于定制 AI 角色性格、输出格式或特定业务规则" FontSize="11" Foreground="Gray"/>
                             <TextBox Name="CustomPromptTextBox" AcceptsReturn="True" Height="80" TextWrapping="Wrap"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     Watermark="输入针对 AI 的额外要求，例如：'精简回答，不要废话'、'调课时提醒老师姓名'等..."/>
+                                     Watermark="请输入文本..."/>
                         </StackPanel>
 
                         <!-- 长期记忆管理 -->
@@ -100,7 +100,7 @@
                             </Grid>
                             <TextBox Name="CustomMemoryTextBox" AcceptsReturn="True" Height="100" TextWrapping="Wrap"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                     Watermark="长期记忆内容（如：- 班级：高三(2)班&#x0a;- 化学老师姓王&#x0a;- 周五下午提早放学）..."/>
+                                     Watermark="请输入文本..."/>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -118,7 +118,7 @@
                             <StackPanel Spacing="8">
                                 <TextBlock Name="PasswordStatusTextBlock" Text="当前状态：未设置固定密码（默认无密码）" FontWeight="SemiBold"/>
                                 <Grid ColumnDefinitions="*, Auto, Auto">
-                                    <TextBox Name="NewPasswordBox" PasswordChar="*" Watermark="输入新密码 (留空并点击清除可恢复无密码)" HorizontalAlignment="Stretch"/>
+                                    <TextBox Name="NewPasswordBox" PasswordChar="*" Watermark="请输入文本..." HorizontalAlignment="Stretch"/>
                                     <Button Name="SavePasswordButton" Grid.Column="1" Margin="8,0,0,0" Content="更新密码"/>
                                     <Button Name="ClearPasswordButton" Grid.Column="2" Margin="8,0,0,0" Content="清除密码" IsVisible="False"/>
                                 </Grid>
@@ -167,7 +167,7 @@
                                         <StackPanel Spacing="6">
                                             <TextBlock Text="输入手环或验证器当前显示的 6 位动态验证码完成激活：" FontSize="12" FontWeight="SemiBold"/>
                                             <Grid ColumnDefinitions="160, Auto, Auto">
-                                                <TextBox Name="TotpVerifyCodeTextBox" MaxLength="6" Watermark="6位数字动态码"/>
+                                                <TextBox Name="TotpVerifyCodeTextBox" MaxLength="6" Watermark="请输入文本..."/>
                                                 <Button Name="VerifyAndActivateTotpButton" Grid.Column="1" Margin="8,0,0,0" Content="验证并正式激活" Classes="accent"/>
                                                 <Button Name="CancelPendingTotpButton" Grid.Column="2" Margin="8,0,0,0" Content="放弃暂存"/>
                                             </Grid>

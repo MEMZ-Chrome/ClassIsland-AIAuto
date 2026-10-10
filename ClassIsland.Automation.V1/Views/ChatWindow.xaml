@@ -142,11 +142,26 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <TextBox Name="InputTextBox" AcceptsReturn="True" TextWrapping="Wrap"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                     MinHeight="36" MaxHeight="120"
-                     VerticalContentAlignment="Center" Padding="6"/>
+            <Grid>
+                <TextBox Name="InputTextBox" AcceptsReturn="True" TextWrapping="Wrap"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                         MinHeight="36" MaxHeight="120"
+                         VerticalContentAlignment="Center" Padding="6"/>
+                <TextBlock Name="InputWatermarkTextBlock" Text="请输入文本..." Foreground="Gray"
+                           IsHitTestVisible="False" VerticalAlignment="Center" Margin="10,0,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Text, ElementName=InputTextBox}" Value="">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
             <Button Name="SendButton" Grid.Column="1" Content="发送" Margin="8,0,0,0" Padding="16,6"
                     VerticalAlignment="Bottom"/>
         </Grid>

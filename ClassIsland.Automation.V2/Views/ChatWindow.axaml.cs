@@ -147,7 +147,7 @@ public partial class ChatWindow : Window
         {
             Role = ChatRole.Assistant,
             TimeString = now.ToString("HH:mm"),
-            Content = $"你好！我是 ClassIsland AI 助手。\n今天是 {now:yyyy-MM-dd}（{todayStr}）。你可以：\n• 直接自然语言吩咐调课（如“把明天的第一节课改成化学”）\n• 询问课表安排（如“看看周六有什么课”）\n• 上传课表图片自动解析录入\n• 调整设置（如“把时间偏移设为10秒”）\n• 让我记住重要信息（如“记住我们是高三2班”）"
+            Content = "你好，我是 ClassIsland AI 助手。"
         });
 
         ScrollToBottom();

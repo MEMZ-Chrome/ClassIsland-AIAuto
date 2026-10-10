@@ -102,7 +102,7 @@
         <!-- 输入与发送（支持回车发送，Shift+Enter换行） -->
         <Grid Grid.Row="3" ColumnDefinitions="*, Auto">
             <TextBox Name="InputTextBox"
-                     Watermark="输入你的需求（例如：'把明天的第一节和最后一节课改成化学'，Enter 发送，Shift+Enter 换行）..."
+                     Watermark="请输入文本..."
                      AcceptsReturn="True" TextWrapping="Wrap"
                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                      ScrollViewer.VerticalScrollBarVisibility="Hidden"
