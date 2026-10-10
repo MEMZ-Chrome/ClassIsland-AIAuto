@@ -586,7 +586,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
         if (TotpStatusTextBlock != null)
         {
-            if (SecurityService.IsActiveTotpEnabled(_settings))
+            if (SecurityService.HasActiveTotp(_settings))
             {
                 TotpStatusTextBlock.Text = "当前状态：✅ TOTP 动态口令已正式激活生效保护";
                 if (SetupTotpButton != null) SetupTotpButton.Content = "重新配置 TOTP";

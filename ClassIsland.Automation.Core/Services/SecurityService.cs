@@ -30,6 +30,8 @@ public static class SecurityService
         return !string.IsNullOrWhiteSpace(settings.TotpSecret);
     }
 
+    public static bool IsActiveTotpEnabled(PluginSettings settings) => HasActiveTotp(settings);
+
     public static bool HasPendingTotp(PluginSettings settings)
     {
         return !string.IsNullOrWhiteSpace(settings.PendingTotpSecret);
