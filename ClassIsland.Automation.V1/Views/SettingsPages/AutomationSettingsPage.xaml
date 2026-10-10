@@ -46,32 +46,75 @@
                 <TabControl>
                     <!-- 选项卡 1：模型服务 -->
                     <TabItem Header="模型服务">
-                        <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,12,0,0">
-                            <StackPanel>
-                                <TextBlock Text="AI 服务提供商" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <ComboBox Name="ProviderComboBox" SelectedIndex="0" Margin="0,0,0,12">
-                                    <ComboBoxItem Content="小米 MiMo"/>
-                                    <ComboBoxItem Content="DeepSeek"/>
-                                    <ComboBoxItem Content="自定义 (OpenAI兼容)"/>
-                                </ComboBox>
+                        <StackPanel Margin="0,12,0,0">
+                            <!-- 供应商管理卡片 -->
+                            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="选择或管理供应商" FontWeight="SemiBold"/>
+                                            <TextBlock Text="支持配置多个大模型提供商（别名、地址与私钥）并在对话中快速切换" FontSize="11" Foreground="Gray"/>
+                                        </StackPanel>
+                                        <Button Name="AddProviderButton" Grid.Column="1" Margin="8,0,0,0" Content="+ 添加供应商" Padding="12,4"/>
+                                        <Button Name="DeleteProviderButton" Grid.Column="2" Margin="8,0,0,0" Content="删除此供应商" Padding="12,4"/>
+                                    </Grid>
 
-                                <TextBlock Text="API 地址 (Base URL)" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <TextBox Name="BaseUrlTextBox" Margin="0,0,0,12"/>
+                                    <!-- 供应商下拉选择 -->
+                                    <ComboBox Name="ProviderComboBox" Margin="0,0,0,12"/>
 
-                                <TextBlock Text="API 密钥 (API Key)" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <PasswordBox Name="ApiKeyPasswordBox" Margin="0,0,0,12"/>
+                                    <!-- 供应商别名 -->
+                                    <TextBlock Text="供应商别名 (Alias)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBox Name="ProviderNameTextBox" Margin="0,0,0,12"/>
 
-                                <TextBlock Text="模型名称 (Model)" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                <Grid Margin="0,0,0,12">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <ComboBox Name="ModelComboBox" IsEditable="True"/>
-                                    <Button Name="FetchModelsButton" Grid.Column="1" Margin="8,0,0,0" Content="自动获取模型列表" Padding="8,4"/>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
+                                    <!-- API 地址 -->
+                                    <TextBlock Text="API 地址 (Base URL)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <TextBox Name="BaseUrlTextBox" Margin="0,0,0,12"/>
+
+                                    <!-- API 密钥 -->
+                                    <TextBlock Text="API 密钥 (API Key)" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                    <PasswordBox Name="ApiKeyPasswordBox" Margin="0,0,0,12"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 模型列表与勾选卡片 -->
+                            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="模型列表 (勾选启用的模型)" FontWeight="SemiBold"/>
+                                            <TextBlock Text="勾选后的模型将在对话窗口顶部下拉菜单中提供选择" FontSize="11" Foreground="Gray"/>
+                                        </StackPanel>
+                                        <Button Name="FetchModelsButton" Grid.Column="1" Content="自动获取模型列表" Padding="10,4"/>
+                                    </Grid>
+
+                                    <!-- 手动添加模型 -->
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Name="NewModelTextBox"/>
+                                        <Button Name="AddModelButton" Grid.Column="1" Margin="8,0,0,0" Content="添加模型" Padding="12,4"/>
+                                    </Grid>
+
+                                    <!-- 模型列表展示 (带复选框勾选与删除) -->
+                                    <Border Background="#F9F9F9" BorderBrush="#EEE" BorderThickness="1" CornerRadius="6" Padding="8" MaxHeight="220">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <StackPanel Name="ModelsContainer"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
                     </TabItem>
 
                     <!-- 选项卡 2：高级偏好 -->

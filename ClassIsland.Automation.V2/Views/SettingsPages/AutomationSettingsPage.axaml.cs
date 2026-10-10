@@ -1,4 +1,6 @@
+using System.IO;
 using System.Text.Json;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
@@ -20,6 +22,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
     private readonly AiClientService _aiClient = new();
     private bool _isUpdatingUi = false;
     private bool _isUnlocked = false;
+    private AiProviderConfig? _currentEditingProvider;
 
     public AutomationSettingsPage()
     {
@@ -29,6 +32,9 @@ public partial class AutomationSettingsPage : SettingsPageBase
         Directory.CreateDirectory(configDir);
         _settingsFilePath = Path.Combine(configDir, "settings.json");
         _settings = SettingsManager.Load(_settingsFilePath);
+        _settings.EnsureProvidersInitialized();
+
+        _currentEditingProvider = _settings.CurrentProvider ?? _settings.Providers.FirstOrDefault();
 
         InitSecurityState();
         InitControls();
@@ -112,7 +118,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             if (UnlockErrorTextBlock != null)
             {
-                UnlockErrorTextBlock.Text = "密码或 6 位 TOTP 动态码错误，请重试！";
+                UnlockErrorTextBlock.Text = "密码或 TOTP 动态验证码错误，请重新输入！";
                 UnlockErrorTextBlock.IsVisible = true;
             }
         }
@@ -140,36 +146,59 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
     private void InitControls()
     {
+        UpdateProviderComboBox();
+        UpdateInputsForCurrentProvider();
+
         if (ProviderComboBox != null)
         {
-            ProviderComboBox.SelectedIndex = (int)_settings.Provider;
-            ProviderComboBox.SelectionChanged += OnProviderChanged;
+            ProviderComboBox.SelectionChanged += OnProviderSelectionChanged;
         }
 
-        UpdateInputsForProvider();
+        if (AddProviderButton != null)
+        {
+            AddProviderButton.Click += OnAddProviderClicked;
+        }
+
+        if (DeleteProviderButton != null)
+        {
+            DeleteProviderButton.Click += OnDeleteProviderClicked;
+        }
+
+        if (ProviderNameTextBox != null)
+        {
+            ProviderNameTextBox.LostFocus += (_, _) =>
+            {
+                SyncFromCurrentProviderInputs();
+                AutoSave();
+            };
+        }
 
         if (BaseUrlTextBox != null)
         {
-            BaseUrlTextBox.LostFocus += (_, _) => AutoSave();
+            BaseUrlTextBox.LostFocus += (_, _) =>
+            {
+                SyncFromCurrentProviderInputs();
+                AutoSave();
+            };
         }
 
         if (ApiKeyTextBox != null)
         {
-            ApiKeyTextBox.LostFocus += (_, _) => AutoSave();
-        }
-
-        if (ModelComboBox != null)
-        {
-            ModelComboBox.SelectionChanged += (_, _) =>
+            ApiKeyTextBox.LostFocus += (_, _) =>
             {
-                if (!_isUpdatingUi) AutoSave();
+                SyncFromCurrentProviderInputs();
+                AutoSave();
             };
-            ModelComboBox.LostFocus += (_, _) => AutoSave();
         }
 
         if (FetchModelsButton != null)
         {
             FetchModelsButton.Click += OnFetchModelsClicked;
+        }
+
+        if (AddModelButton != null)
+        {
+            AddModelButton.Click += OnAddModelClicked;
         }
 
         if (SaveButton != null)
@@ -178,6 +207,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             {
                 SyncFromInputs();
                 SaveSettingsToFile();
+                if (StatusTextBlock != null) StatusTextBlock.Text = "设置已保存成功！";
             };
         }
 
@@ -215,6 +245,232 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 if (StatusTextBlock != null) StatusTextBlock.Text = "长期记忆库已清空并保存！";
             };
         }
+    }
+
+    private void UpdateProviderComboBox(bool preserveIndex = false)
+    {
+        if (ProviderComboBox == null) return;
+        _isUpdatingUi = true;
+        try
+        {
+            var oldIdx = preserveIndex ? ProviderComboBox.SelectedIndex : -1;
+            var names = _settings.Providers.Select(p => string.IsNullOrWhiteSpace(p.Name) ? "(未命名供应商)" : p.Name).ToList();
+            ProviderComboBox.ItemsSource = names;
+            if (oldIdx >= 0 && oldIdx < names.Count)
+            {
+                ProviderComboBox.SelectedIndex = oldIdx;
+            }
+            else if (_currentEditingProvider != null)
+            {
+                var idx = _settings.Providers.IndexOf(_currentEditingProvider);
+                ProviderComboBox.SelectedIndex = idx >= 0 ? idx : 0;
+            }
+        }
+        finally
+        {
+            _isUpdatingUi = false;
+        }
+    }
+
+    private void UpdateInputsForCurrentProvider()
+    {
+        _isUpdatingUi = true;
+        try
+        {
+            if (_currentEditingProvider == null) return;
+            if (ProviderNameTextBox != null) ProviderNameTextBox.Text = _currentEditingProvider.Name;
+            if (BaseUrlTextBox != null) BaseUrlTextBox.Text = _currentEditingProvider.BaseUrl;
+            if (ApiKeyTextBox != null) ApiKeyTextBox.Text = _currentEditingProvider.ApiKey;
+            RenderModelsList();
+        }
+        finally
+        {
+            _isUpdatingUi = false;
+        }
+    }
+
+    private void RenderModelsList()
+    {
+        if (ModelsContainer == null || _currentEditingProvider == null) return;
+        ModelsContainer.Children.Clear();
+
+        if (_currentEditingProvider.Models.Count == 0)
+        {
+            var hint = new TextBlock
+            {
+                Text = "当前供应商暂无模型。请点击「自动获取模型列表」或在上方手动输入添加。",
+                Foreground = Brushes.Gray,
+                FontSize = 12,
+                Margin = new Thickness(4)
+            };
+            ModelsContainer.Children.Add(hint);
+            return;
+        }
+
+        foreach (var model in _currentEditingProvider.Models)
+        {
+            var rowGrid = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("*, Auto"),
+                Margin = new Thickness(0, 2)
+            };
+
+            var checkBox = new CheckBox
+            {
+                Content = model.Name,
+                IsChecked = model.IsEnabled,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+            checkBox.IsCheckedChanged += (_, _) =>
+            {
+                model.IsEnabled = checkBox.IsChecked == true;
+                AutoSave();
+            };
+
+            var delBtn = new Button
+            {
+                Content = "✕",
+                Padding = new Thickness(8, 2),
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+            delBtn.Click += (_, _) =>
+            {
+                _currentEditingProvider.Models.Remove(model);
+                RenderModelsList();
+                AutoSave();
+            };
+            Grid.SetColumn(delBtn, 1);
+
+            rowGrid.Children.Add(checkBox);
+            rowGrid.Children.Add(delBtn);
+            ModelsContainer.Children.Add(rowGrid);
+        }
+    }
+
+    private void OnProviderSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_isUpdatingUi) return;
+        SyncFromCurrentProviderInputs();
+
+        var idx = ProviderComboBox?.SelectedIndex ?? -1;
+        if (idx >= 0 && idx < _settings.Providers.Count)
+        {
+            _currentEditingProvider = _settings.Providers[idx];
+            _settings.ActiveProviderId = _currentEditingProvider.Id;
+            UpdateInputsForCurrentProvider();
+            SaveSettingsToFile();
+        }
+    }
+
+    private void OnAddProviderClicked(object? sender, RoutedEventArgs e)
+    {
+        SyncFromCurrentProviderInputs();
+        var newP = new AiProviderConfig
+        {
+            Name = $"供应商 {_settings.Providers.Count + 1}",
+            BaseUrl = "https://api.openai.com/v1",
+            ApiKey = "",
+            Models = new List<AiModelItem>()
+        };
+        _settings.Providers.Add(newP);
+        _currentEditingProvider = newP;
+        _settings.ActiveProviderId = newP.Id;
+
+        UpdateProviderComboBox();
+        ProviderComboBox.SelectedIndex = _settings.Providers.Count - 1;
+        UpdateInputsForCurrentProvider();
+        SaveSettingsToFile();
+    }
+
+    private void OnDeleteProviderClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_settings.Providers.Count <= 1)
+        {
+            if (StatusTextBlock != null) StatusTextBlock.Text = "至少需保留一个供应商！";
+            return;
+        }
+
+        if (_currentEditingProvider != null)
+        {
+            _settings.Providers.Remove(_currentEditingProvider);
+            _currentEditingProvider = _settings.Providers.FirstOrDefault();
+            _settings.ActiveProviderId = _currentEditingProvider?.Id ?? "";
+            UpdateProviderComboBox();
+            ProviderComboBox.SelectedIndex = 0;
+            UpdateInputsForCurrentProvider();
+            SaveSettingsToFile();
+        }
+    }
+
+    private void OnAddModelClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_currentEditingProvider == null) return;
+        var modelName = NewModelTextBox?.Text?.Trim() ?? "";
+        if (string.IsNullOrWhiteSpace(modelName)) return;
+
+        if (!_currentEditingProvider.Models.Any(m => m.Name == modelName))
+        {
+            _currentEditingProvider.Models.Add(new AiModelItem(modelName, true));
+            if (NewModelTextBox != null) NewModelTextBox.Text = "";
+            RenderModelsList();
+            AutoSave();
+        }
+    }
+
+    private async void OnFetchModelsClicked(object? sender, RoutedEventArgs e)
+    {
+        if (_currentEditingProvider == null) return;
+        SyncFromCurrentProviderInputs();
+
+        if (StatusTextBlock != null) StatusTextBlock.Text = "正在获取模型列表...";
+
+        try
+        {
+            var models = await _aiClient.FetchModelsAsync(_currentEditingProvider.BaseUrl, _currentEditingProvider.ApiKey);
+            if (models.Count > 0)
+            {
+                foreach (var m in models)
+                {
+                    if (!_currentEditingProvider.Models.Any(existing => existing.Name == m))
+                    {
+                        _currentEditingProvider.Models.Add(new AiModelItem(m, true));
+                    }
+                }
+                RenderModelsList();
+                AutoSave();
+                if (StatusTextBlock != null) StatusTextBlock.Text = $"成功获取 {models.Count} 个模型并已加入列表！";
+            }
+            else
+            {
+                if (StatusTextBlock != null) StatusTextBlock.Text = "未能获取到任何模型，请检查地址与密钥。";
+            }
+        }
+        catch (Exception ex)
+        {
+            if (StatusTextBlock != null) StatusTextBlock.Text = $"获取模型失败: {ex.Message}";
+        }
+    }
+
+    private void SyncFromInputs()
+    {
+        SyncFromCurrentProviderInputs();
+        _settings.IsMemoryEnabled = IsMemoryEnabledCheckBox?.IsChecked ?? true;
+        _settings.IsCommandExecutionEnabled = IsCommandExecutionEnabledCheckBox?.IsChecked ?? false;
+        _settings.CustomPrompt = CustomPromptTextBox?.Text?.Trim() ?? "";
+        _settings.CustomMemory = CustomMemoryTextBox?.Text?.Trim() ?? "";
+    }
+
+    private void SyncFromCurrentProviderInputs()
+    {
+        if (_currentEditingProvider == null) return;
+        var name = ProviderNameTextBox?.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(name) && _currentEditingProvider.Name != name)
+        {
+            _currentEditingProvider.Name = name;
+            UpdateProviderComboBox(preserveIndex: true);
+        }
+        _currentEditingProvider.BaseUrl = BaseUrlTextBox?.Text?.Trim() ?? "";
+        _currentEditingProvider.ApiKey = ApiKeyTextBox?.Text?.Trim() ?? "";
     }
 
     private void InitSecurityControls()
@@ -307,7 +563,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 SecurityService.CancelPendingTotp(_settings);
                 SaveSettingsToFile();
                 UpdateSecurityStateUi();
-                if (StatusTextBlock != null) StatusTextBlock.Text = "已取消待验证的 TOTP 暂存。";
+                if (StatusTextBlock != null) StatusTextBlock.Text = "已放弃暂存的 TOTP 配置！";
             };
         }
 
@@ -318,25 +574,23 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 SecurityService.DisableTotp(_settings);
                 SaveSettingsToFile();
                 UpdateSecurityStateUi();
-                if (StatusTextBlock != null) StatusTextBlock.Text = "TOTP 动态口令保护已完全关闭。";
+                if (StatusTextBlock != null) StatusTextBlock.Text = "TOTP 动态口令已关闭！";
             };
         }
     }
 
     private void UpdateSecurityStateUi()
     {
-        // 1. 固定密码状态
         if (PasswordStatusTextBlock != null)
         {
             bool hasPwd = SecurityService.HasPassword(_settings);
-            PasswordStatusTextBlock.Text = hasPwd ? "当前状态：已启用固定密码保护" : "当前状态：未设置固定密码（默认无密码）";
+            PasswordStatusTextBlock.Text = hasPwd ? "当前状态：已设置固定密码 🔒" : "当前状态：未设置固定密码（默认无密码）";
             if (ClearPasswordButton != null) ClearPasswordButton.IsVisible = hasPwd;
         }
 
-        // 2. TOTP 状态
         if (TotpStatusTextBlock != null)
         {
-            if (SecurityService.HasActiveTotp(_settings))
+            if (SecurityService.IsActiveTotpEnabled(_settings))
             {
                 TotpStatusTextBlock.Text = "当前状态：✅ TOTP 动态口令已正式激活生效保护";
                 if (SetupTotpButton != null) SetupTotpButton.Content = "重新配置 TOTP";
@@ -391,97 +645,5 @@ public partial class AutomationSettingsPage : SettingsPageBase
             }
         }
         catch { }
-    }
-
-    private void OnProviderChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        if (_isUpdatingUi) return;
-        SyncFromInputs();
-        _settings.Provider = (AiProviderType)(ProviderComboBox?.SelectedIndex ?? 0);
-        UpdateInputsForProvider();
-        SaveSettingsToFile();
-    }
-
-    private void UpdateInputsForProvider()
-    {
-        _isUpdatingUi = true;
-        try
-        {
-            if (BaseUrlTextBox == null || ApiKeyTextBox == null || ModelComboBox == null) return;
-
-            BaseUrlTextBox.Text = _settings.CurrentBaseUrl;
-            ApiKeyTextBox.Text = _settings.CurrentApiKey;
-
-            var currentModel = _settings.CurrentModel;
-            ModelComboBox.SelectedItem = currentModel;
-            ModelComboBox.Text = currentModel;
-        }
-        finally
-        {
-            _isUpdatingUi = false;
-        }
-    }
-
-    private void SyncFromInputs()
-    {
-        var model = (ModelComboBox?.SelectedItem?.ToString() ?? ModelComboBox?.Text ?? "").Trim();
-
-        switch (_settings.Provider)
-        {
-            case AiProviderType.MiMo:
-                _settings.MiMoBaseUrl = BaseUrlTextBox?.Text?.Trim() ?? "";
-                _settings.MiMoApiKey = ApiKeyTextBox?.Text?.Trim() ?? "";
-                if (!string.IsNullOrWhiteSpace(model)) _settings.MiMoModel = model;
-                break;
-            case AiProviderType.DeepSeek:
-                _settings.DeepSeekBaseUrl = BaseUrlTextBox?.Text?.Trim() ?? "";
-                _settings.DeepSeekApiKey = ApiKeyTextBox?.Text?.Trim() ?? "";
-                if (!string.IsNullOrWhiteSpace(model)) _settings.DeepSeekModel = model;
-                break;
-            default:
-                _settings.CustomBaseUrl = BaseUrlTextBox?.Text?.Trim() ?? "";
-                _settings.CustomApiKey = ApiKeyTextBox?.Text?.Trim() ?? "";
-                if (!string.IsNullOrWhiteSpace(model)) _settings.CustomModel = model;
-                break;
-        }
-
-        _settings.IsMemoryEnabled = IsMemoryEnabledCheckBox?.IsChecked ?? true;
-        _settings.IsCommandExecutionEnabled = IsCommandExecutionEnabledCheckBox?.IsChecked ?? false;
-        _settings.CustomPrompt = CustomPromptTextBox?.Text?.Trim() ?? "";
-        _settings.CustomMemory = CustomMemoryTextBox?.Text?.Trim() ?? "";
-    }
-
-    private async void OnFetchModelsClicked(object? sender, RoutedEventArgs e)
-    {
-        if (StatusTextBlock != null) StatusTextBlock.Text = "正在获取模型列表...";
-        SyncFromInputs();
-
-        try
-        {
-            var models = await _aiClient.FetchModelsAsync(_settings.CurrentBaseUrl, _settings.CurrentApiKey);
-            if (ModelComboBox != null)
-            {
-                _isUpdatingUi = true;
-                try
-                {
-                    ModelComboBox.ItemsSource = models;
-                    if (models.Count > 0)
-                    {
-                        var existingIndex = models.IndexOf(_settings.CurrentModel);
-                        ModelComboBox.SelectedIndex = existingIndex >= 0 ? existingIndex : 0;
-                    }
-                }
-                finally
-                {
-                    _isUpdatingUi = false;
-                }
-                AutoSave();
-            }
-            if (StatusTextBlock != null) StatusTextBlock.Text = $"成功获取 {models.Count} 个模型并已自动保存！";
-        }
-        catch (Exception ex)
-        {
-            if (StatusTextBlock != null) StatusTextBlock.Text = $"获取失败: {ex.Message}";
-        }
     }
 }

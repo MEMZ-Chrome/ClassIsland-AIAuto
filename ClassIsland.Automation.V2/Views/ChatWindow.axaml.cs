@@ -22,6 +22,8 @@ public partial class ChatWindow : Window
     private readonly IUriNavigationService? _uriService;
     private readonly JsonArray _conversationMessages = new();
     private readonly ObservableCollection<ChatMessageItem> _displayMessages = new();
+    private PluginSettings _settings = new();
+    private bool _isUpdatingModelCombo = false;
 
     public ChatWindow(IProfileService? profileService = null, IUriNavigationService? uriService = null)
     {
@@ -51,18 +53,53 @@ public partial class ChatWindow : Window
             };
         }
 
-        UpdateHeaderTime();
+        _settings = LoadPluginSettings();
+        InitModelSelector();
         InitConversation();
     }
 
-    private void UpdateHeaderTime()
+    private void InitModelSelector()
     {
-        var now = DateTime.Now;
-        var weekDayStr = ToolExecutor.GetChineseWeekDay(now.DayOfWeek);
-        if (CurrentTimeHeader != null)
+        if (ModelSelectComboBox == null) return;
+        _isUpdatingModelCombo = true;
+        try
         {
-            CurrentTimeHeader.Text = $"今日：{now:yyyy-MM-dd} {weekDayStr}";
+            _settings.EnsureProvidersInitialized();
+            var options = _settings.GetEnabledModelOptions();
+            ModelSelectComboBox.ItemsSource = options;
+
+            if (options.Count > 0)
+            {
+                var matched = options.FirstOrDefault(o =>
+                    o.ProviderId == _settings.ActiveProviderId && o.ModelName == _settings.ActiveModelName);
+                ModelSelectComboBox.SelectedItem = matched ?? options[0];
+                if (matched == null)
+                {
+                    _settings.SelectActiveModel(options[0].ProviderId, options[0].ModelName);
+                }
+            }
+            else
+            {
+                ModelSelectComboBox.ItemsSource = new List<string> { "(暂无已勾选模型)" };
+                ModelSelectComboBox.SelectedIndex = 0;
+            }
         }
+        finally
+        {
+            _isUpdatingModelCombo = false;
+        }
+
+        ModelSelectComboBox.SelectionChanged += (s, e) =>
+        {
+            if (_isUpdatingModelCombo) return;
+            if (ModelSelectComboBox.SelectedItem is ActiveModelOption selected)
+            {
+                _settings.SelectActiveModel(selected.ProviderId, selected.ModelName);
+                var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
+                var settingsPath = Path.Combine(configDir, "settings.json");
+                SaveSettingsToFile(_settings, settingsPath);
+            }
+        };
     }
 
     private PluginSettings LoadPluginSettings()
@@ -215,6 +252,10 @@ public partial class ChatWindow : Window
         var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
         var settingsPath = Path.Combine(configDir, "settings.json");
         var settings = SettingsManager.Load(settingsPath);
+        if (ModelSelectComboBox?.SelectedItem is ActiveModelOption opt)
+        {
+            settings.SelectActiveModel(opt.ProviderId, opt.ModelName);
+        }
 
         if (string.IsNullOrWhiteSpace(settings.CurrentModel))
         {
@@ -222,7 +263,7 @@ public partial class ChatWindow : Window
             {
                 Role = ChatRole.System,
                 TimeString = DateTime.Now.ToString("HH:mm"),
-                Content = "未配置 AI 模型！请先在【设置 -> IslandAgent设置】中选择提供商并设置模型。"
+                Content = "未配置可用模型！请先在【设置 -> IslandAgent设置 -> 模型服务】中配置供应商并勾选所需模型。"
             });
             ScrollToBottom();
             return;

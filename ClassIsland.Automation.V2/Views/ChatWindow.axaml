@@ -8,13 +8,18 @@
         Title="IslandAgent" Width="640" Height="720"
         WindowStartupLocation="CenterScreen">
     <Grid RowDefinitions="Auto, *, Auto, Auto" Margin="16">
-        <!-- 头部说明与状态 -->
-        <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
+        <!-- 头部说明、模型选择与状态 -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,12">
             <StackPanel Spacing="2">
                 <TextBlock Text="AI 助手" FontSize="18" FontWeight="Bold"/>
-                <TextBlock Name="HeaderSubTitle" Text="支持连续智能调课、课表问答与设置调整（时间偏移、通知、主题等）" FontSize="12" Foreground="Gray"/>
+                <TextBlock Name="HeaderSubTitle" Text="连续智能调课、课表问答与设置调整" FontSize="12" Foreground="Gray"/>
             </StackPanel>
-            <TextBlock Name="CurrentTimeHeader" Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="Gray"/>
+
+            <!-- 对话界面模型快速切换下拉框 -->
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="当前模型:" VerticalAlignment="Center" FontSize="12" Foreground="Gray"/>
+                <ComboBox Name="ModelSelectComboBox" MinWidth="180" MaxWidth="260" VerticalAlignment="Center"/>
+            </StackPanel>
         </Grid>
 
         <!-- 消息历史对话流（气泡式对话界面） -->
