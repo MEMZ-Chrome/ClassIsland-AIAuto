@@ -893,6 +893,8 @@ public class ToolExecutor
                     _pluginSettings.CustomMemory = $"{currentMemory}\n- {content}";
                 }
                 _onSavePluginSettings?.Invoke();
+                SettingsManager.Save(_pluginSettings);
+                SettingsManager.NotifySettingsChanged(_pluginSettings);
                 return new ToolExecutionResult
                 {
                     ToolCallId = toolId,
@@ -904,6 +906,8 @@ public class ToolExecutor
             case "set":
                 _pluginSettings.CustomMemory = content;
                 _onSavePluginSettings?.Invoke();
+                SettingsManager.Save(_pluginSettings);
+                SettingsManager.NotifySettingsChanged(_pluginSettings);
                 return new ToolExecutionResult
                 {
                     ToolCallId = toolId,
@@ -915,6 +919,8 @@ public class ToolExecutor
             case "clear":
                 _pluginSettings.CustomMemory = "";
                 _onSavePluginSettings?.Invoke();
+                SettingsManager.Save(_pluginSettings);
+                SettingsManager.NotifySettingsChanged(_pluginSettings);
                 return new ToolExecutionResult
                 {
                     ToolCallId = toolId,

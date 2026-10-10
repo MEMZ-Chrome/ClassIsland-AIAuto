@@ -107,7 +107,7 @@ public partial class ChatWindow : Window
         sb.AppendLine("3. 当用户询问课表内容或调课前需要确认现有课程时，请主动调用 get_profile_summary 或 get_schedule_details 查看确切课程安排。");
         if (settings.IsMemoryEnabled)
         {
-            sb.AppendLine("4. 当用户吩咐“记住...”（如班级、老师名字、作息偏好、调课习惯）时，调用 update_memory 工具持久化保存到长期记忆库中。");
+            sb.AppendLine("4. 【长期记忆与自动更新】：当用户在对话中透露或你分析得出班级信息、作息习惯、科目/老师偏好、调课规律等具有持久价值的信息时，请自主调用 update_memory 工具自动记录并更新长期记忆库（无需用户每次明确提醒“请记住”）；用户明确吩咐“记住...”或要求修改记忆时也必须调用。在回答关于用户偏好、班级、老师或之前记录过的内容时，必须严格查阅并遵循【AI 长期记忆库 / 偏好事实】中的记录！");
         }
         sb.AppendLine("5. 操作完成后，请用清晰明了的中文 Markdown 富文本给出回复。");
 
@@ -214,15 +214,7 @@ public partial class ChatWindow : Window
 
         var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
         var settingsPath = Path.Combine(configDir, "settings.json");
-        var settings = new PluginSettings();
-        if (File.Exists(settingsPath))
-        {
-            try
-            {
-                settings = JsonSerializer.Deserialize<PluginSettings>(File.ReadAllText(settingsPath)) ?? new PluginSettings();
-            }
-            catch { }
-        }
+        var settings = SettingsManager.Load(settingsPath);
 
         if (string.IsNullOrWhiteSpace(settings.CurrentModel))
         {
@@ -260,12 +252,22 @@ public partial class ChatWindow : Window
             });
         }
 
-        if (_conversationMessages.Count == 0 || _conversationMessages[0]?["role"]?.GetValue<string>() != "system")
+        // 每次对话轮次都刷新最新的系统提示词（确保长期记忆库更新后下一轮直接生效）
+        var systemPromptContent = BuildSystemPrompt(settings);
+        if (_conversationMessages.Count > 0 && _conversationMessages[0]?["role"]?.GetValue<string>() == "system")
+        {
+            _conversationMessages[0] = new JsonObject
+            {
+                ["role"] = "system",
+                ["content"] = systemPromptContent
+            };
+        }
+        else
         {
             _conversationMessages.Insert(0, new JsonObject
             {
                 ["role"] = "system",
-                ["content"] = BuildSystemPrompt(settings)
+                ["content"] = systemPromptContent
             });
         }
 
@@ -300,7 +302,14 @@ public partial class ChatWindow : Window
 
         try
         {
-            var executor = new ToolExecutor(_profileService, _uriService, settings, () => SaveSettingsToFile(settings, settingsPath));
+            var executor = new ToolExecutor(_profileService, _uriService, settings, () =>
+            {
+                SettingsManager.Save(settings);
+                if (_conversationMessages.Count > 0 && _conversationMessages[0]?["role"]?.GetValue<string>() == "system")
+                {
+                    _conversationMessages[0]["content"] = BuildSystemPrompt(settings);
+                }
+            });
             var response = await _aiClient.ExecuteAgentTurnAsync(
                 settings,
                 _conversationMessages,

@@ -26,6 +26,7 @@
     <PackageReference Include="System.Text.Json" Version="9.0.2">
       <ExcludeAssets>runtime; native</ExcludeAssets>
     </PackageReference>
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
 
   <ItemGroup>

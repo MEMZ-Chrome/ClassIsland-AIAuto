@@ -1,6 +1,9 @@
 using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using ClassIsland.Automation.Core.Models;
 using ClassIsland.Automation.Core.Services;
 using ClassIsland.Core.Abstractions.Controls;
@@ -12,10 +15,11 @@ namespace ClassIsland.Automation.V2.Views.SettingsPages;
 [SettingsPageInfo("memz.ci.automation.settings", "CI自动化", SettingsPageCategory.External)]
 public partial class AutomationSettingsPage : SettingsPageBase
 {
-    private readonly PluginSettings _settings;
+    private PluginSettings _settings;
     private readonly string _settingsFilePath;
     private readonly AiClientService _aiClient = new();
     private bool _isUpdatingUi = false;
+    private bool _isUnlocked = false;
 
     public AutomationSettingsPage()
     {
@@ -24,32 +28,101 @@ public partial class AutomationSettingsPage : SettingsPageBase
         var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
         Directory.CreateDirectory(configDir);
         _settingsFilePath = Path.Combine(configDir, "settings.json");
-        _settings = LoadSettings();
+        _settings = SettingsManager.Load(_settingsFilePath);
 
+        InitSecurityState();
         InitControls();
-        Unloaded += (_, _) => AutoSave();
+        InitSecurityControls();
+
+        SettingsManager.SettingsChanged += OnExternalSettingsChanged;
+        Unloaded += (_, _) =>
+        {
+            SettingsManager.SettingsChanged -= OnExternalSettingsChanged;
+            AutoSave();
+        };
     }
 
-    private PluginSettings LoadSettings()
+    private void OnExternalSettingsChanged(PluginSettings updated)
     {
-        try
+        Dispatcher.UIThread.Post(() =>
         {
-            if (File.Exists(_settingsFilePath))
+            if (_isUpdatingUi) return;
+            _isUpdatingUi = true;
+            try
             {
-                var json = File.ReadAllText(_settingsFilePath);
-                return JsonSerializer.Deserialize<PluginSettings>(json) ?? new PluginSettings();
+                _settings.CustomMemory = updated.CustomMemory;
+                if (CustomMemoryTextBox != null)
+                {
+                    CustomMemoryTextBox.Text = updated.CustomMemory;
+                }
+            }
+            finally
+            {
+                _isUpdatingUi = false;
+            }
+        });
+    }
+
+    private void InitSecurityState()
+    {
+        // 关键安全设计：待验证的暂存 TOTP 绝不能使页面进入锁定状态，防止用户因手环未同步而卡死！
+        if (SecurityService.IsActiveProtectionEnabled(_settings) && !_isUnlocked)
+        {
+            if (LockOverlayBorder != null) LockOverlayBorder.IsVisible = true;
+            if (MainSettingsScrollViewer != null) MainSettingsScrollViewer.IsVisible = false;
+        }
+        else
+        {
+            _isUnlocked = true;
+            if (LockOverlayBorder != null) LockOverlayBorder.IsVisible = false;
+            if (MainSettingsScrollViewer != null) MainSettingsScrollViewer.IsVisible = true;
+        }
+
+        if (UnlockButton != null)
+        {
+            UnlockButton.Click += (_, _) => AttemptUnlock();
+        }
+
+        if (UnlockPasswordBox != null)
+        {
+            UnlockPasswordBox.KeyDown += (_, e) =>
+            {
+                if (e.Key == Avalonia.Input.Key.Enter)
+                {
+                    AttemptUnlock();
+                }
+            };
+        }
+    }
+
+    private void AttemptUnlock()
+    {
+        var input = UnlockPasswordBox?.Text?.Trim() ?? "";
+        var result = SecurityService.VerifyAccess(_settings, input);
+
+        if (result != AccessAuthResult.Failed)
+        {
+            _isUnlocked = true;
+            if (UnlockErrorTextBlock != null) UnlockErrorTextBlock.IsVisible = false;
+            if (LockOverlayBorder != null) LockOverlayBorder.IsVisible = false;
+            if (MainSettingsScrollViewer != null) MainSettingsScrollViewer.IsVisible = true;
+            if (UnlockPasswordBox != null) UnlockPasswordBox.Text = "";
+        }
+        else
+        {
+            if (UnlockErrorTextBlock != null)
+            {
+                UnlockErrorTextBlock.Text = "密码或 6 位 TOTP 动态码错误，请重试！";
+                UnlockErrorTextBlock.IsVisible = true;
             }
         }
-        catch { }
-        return new PluginSettings();
     }
 
     private void SaveSettingsToFile()
     {
         try
         {
-            var json = JsonSerializer.Serialize(_settings, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(_settingsFilePath, json);
+            SettingsManager.Save(_settings);
             if (StatusTextBlock != null) StatusTextBlock.Text = "设置已自动保存！";
         }
         catch (Exception ex)
@@ -75,7 +148,6 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
         UpdateInputsForProvider();
 
-        // 监听输入控件改变自动保存
         if (BaseUrlTextBox != null)
         {
             BaseUrlTextBox.LostFocus += (_, _) => AutoSave();
@@ -109,7 +181,6 @@ public partial class AutomationSettingsPage : SettingsPageBase
             };
         }
 
-        // 高级设置与记忆系统控件
         if (IsMemoryEnabledCheckBox != null)
         {
             IsMemoryEnabledCheckBox.IsChecked = _settings.IsMemoryEnabled;
@@ -146,6 +217,182 @@ public partial class AutomationSettingsPage : SettingsPageBase
         }
     }
 
+    private void InitSecurityControls()
+    {
+        UpdateSecurityStateUi();
+
+        if (SavePasswordButton != null)
+        {
+            SavePasswordButton.Click += (_, _) =>
+            {
+                var newPwd = NewPasswordBox?.Text?.Trim() ?? "";
+                SecurityService.SetPassword(_settings, newPwd);
+                SaveSettingsToFile();
+                UpdateSecurityStateUi();
+                if (NewPasswordBox != null) NewPasswordBox.Text = "";
+                if (StatusTextBlock != null) StatusTextBlock.Text = string.IsNullOrEmpty(newPwd) ? "固定密码已清除！" : "固定密码已更新！";
+            };
+        }
+
+        if (ClearPasswordButton != null)
+        {
+            ClearPasswordButton.Click += (_, _) =>
+            {
+                SecurityService.SetPassword(_settings, "");
+                SaveSettingsToFile();
+                UpdateSecurityStateUi();
+                if (NewPasswordBox != null) NewPasswordBox.Text = "";
+                if (StatusTextBlock != null) StatusTextBlock.Text = "固定密码已清除（恢复为无密码）！";
+            };
+        }
+
+        if (SetupTotpButton != null)
+        {
+            SetupTotpButton.Click += (_, _) =>
+            {
+                var secret = SecurityService.StartSetupTotp(_settings);
+                SaveSettingsToFile();
+                DisplayTotpSetupCard(secret);
+                UpdateSecurityStateUi();
+            };
+        }
+
+        if (CopyTotpSecretButton != null)
+        {
+            CopyTotpSecretButton.Click += async (_, _) =>
+            {
+                var rawSecret = TotpService.CleanSecret(_settings.PendingTotpSecret.Length > 0 ? _settings.PendingTotpSecret : _settings.TotpSecret);
+                if (!string.IsNullOrEmpty(rawSecret))
+                {
+                    var topLevel = TopLevel.GetTopLevel(this);
+                    if (topLevel?.Clipboard != null)
+                    {
+                        await topLevel.Clipboard.SetTextAsync(rawSecret);
+                    }
+                    if (StatusTextBlock != null) StatusTextBlock.Text = "TOTP 密钥字符串已复制到剪贴板！";
+                }
+            };
+        }
+
+        if (VerifyAndActivateTotpButton != null)
+        {
+            VerifyAndActivateTotpButton.Click += (_, _) =>
+            {
+                var code = TotpVerifyCodeTextBox?.Text?.Trim() ?? "";
+                if (SecurityService.VerifyAndActivatePendingTotp(_settings, code))
+                {
+                    SaveSettingsToFile();
+                    UpdateSecurityStateUi();
+                    if (TotpVerifyResultTextBlock != null)
+                    {
+                        TotpVerifyResultTextBlock.Text = "✅ 验证通过！TOTP 动态口令已正式生效保护。";
+                        TotpVerifyResultTextBlock.Foreground = new SolidColorBrush(Colors.Green);
+                    }
+                }
+                else
+                {
+                    if (TotpVerifyResultTextBlock != null)
+                    {
+                        TotpVerifyResultTextBlock.Text = "❌ 验证码错误或已失效，请确认手环/手机当前时间并重试。";
+                        TotpVerifyResultTextBlock.Foreground = new SolidColorBrush(Colors.Red);
+                    }
+                }
+            };
+        }
+
+        if (CancelPendingTotpButton != null)
+        {
+            CancelPendingTotpButton.Click += (_, _) =>
+            {
+                SecurityService.CancelPendingTotp(_settings);
+                SaveSettingsToFile();
+                UpdateSecurityStateUi();
+                if (StatusTextBlock != null) StatusTextBlock.Text = "已取消待验证的 TOTP 暂存。";
+            };
+        }
+
+        if (DisableTotpButton != null)
+        {
+            DisableTotpButton.Click += (_, _) =>
+            {
+                SecurityService.DisableTotp(_settings);
+                SaveSettingsToFile();
+                UpdateSecurityStateUi();
+                if (StatusTextBlock != null) StatusTextBlock.Text = "TOTP 动态口令保护已完全关闭。";
+            };
+        }
+    }
+
+    private void UpdateSecurityStateUi()
+    {
+        // 1. 固定密码状态
+        if (PasswordStatusTextBlock != null)
+        {
+            bool hasPwd = SecurityService.HasPassword(_settings);
+            PasswordStatusTextBlock.Text = hasPwd ? "当前状态：已启用固定密码保护" : "当前状态：未设置固定密码（默认无密码）";
+            if (ClearPasswordButton != null) ClearPasswordButton.IsVisible = hasPwd;
+        }
+
+        // 2. TOTP 状态
+        if (TotpStatusTextBlock != null)
+        {
+            if (SecurityService.HasActiveTotp(_settings))
+            {
+                TotpStatusTextBlock.Text = "当前状态：✅ TOTP 动态口令已正式激活生效保护";
+                if (SetupTotpButton != null) SetupTotpButton.Content = "重新配置 TOTP";
+                if (DisableTotpButton != null) DisableTotpButton.IsVisible = true;
+                if (TotpSetupCard != null) TotpSetupCard.IsVisible = false;
+            }
+            else if (SecurityService.HasPendingTotp(_settings))
+            {
+                TotpStatusTextBlock.Text = "当前状态：⚠️ 发现暂存的待验证 TOTP（在输入正确动态码前绝不生效）";
+                if (SetupTotpButton != null) SetupTotpButton.Content = "重新生成 TOTP";
+                if (DisableTotpButton != null) DisableTotpButton.IsVisible = false;
+                DisplayTotpSetupCard(_settings.PendingTotpSecret);
+            }
+            else
+            {
+                TotpStatusTextBlock.Text = "当前状态：未启用 TOTP 动态口令";
+                if (SetupTotpButton != null) SetupTotpButton.Content = "生成并配置 TOTP";
+                if (DisableTotpButton != null) DisableTotpButton.IsVisible = false;
+                if (TotpSetupCard != null) TotpSetupCard.IsVisible = false;
+            }
+        }
+    }
+
+    private void DisplayTotpSetupCard(string secret)
+    {
+        if (TotpSetupCard == null) return;
+        TotpSetupCard.IsVisible = true;
+
+        if (TotpSecretStringTextBox != null)
+        {
+            TotpSecretStringTextBox.Text = TotpService.FormatSecretForDisplay(secret);
+        }
+
+        if (TotpVerifyResultTextBlock != null)
+        {
+            TotpVerifyResultTextBlock.Text = "";
+        }
+
+        if (TotpVerifyCodeTextBox != null)
+        {
+            TotpVerifyCodeTextBox.Text = "";
+        }
+
+        try
+        {
+            string uri = TotpService.GenerateOtpAuthUri(secret);
+            byte[] pngBytes = QrCodeService.GeneratePngBytes(uri);
+            if (pngBytes.Length > 0 && TotpQrCodeImage != null)
+            {
+                using var ms = new MemoryStream(pngBytes);
+                TotpQrCodeImage.Source = new Bitmap(ms);
+            }
+        }
+        catch { }
+    }
+
     private void OnProviderChanged(object? sender, SelectionChangedEventArgs e)
     {
         if (_isUpdatingUi) return;
@@ -177,7 +424,6 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
     private void SyncFromInputs()
     {
-        // 兼容获取 ComboBox 选中的对象或手动输入的文本
         var model = (ModelComboBox?.SelectedItem?.ToString() ?? ModelComboBox?.Text ?? "").Trim();
 
         switch (_settings.Provider)
@@ -199,7 +445,6 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 break;
         }
 
-        // 同步高级设置与记忆库
         _settings.IsMemoryEnabled = IsMemoryEnabledCheckBox?.IsChecked ?? true;
         _settings.IsCommandExecutionEnabled = IsCommandExecutionEnabledCheckBox?.IsChecked ?? false;
         _settings.CustomPrompt = CustomPromptTextBox?.Text?.Trim() ?? "";
@@ -222,7 +467,6 @@ public partial class AutomationSettingsPage : SettingsPageBase
                     ModelComboBox.ItemsSource = models;
                     if (models.Count > 0)
                     {
-                        // 如果之前选中的模型在列表中，继续选中它；否则默认选第一个
                         var existingIndex = models.IndexOf(_settings.CurrentModel);
                         ModelComboBox.SelectedIndex = existingIndex >= 0 ? existingIndex : 0;
                     }
