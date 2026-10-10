@@ -62,13 +62,11 @@
                                             <!-- 消息文本（Markdown 富文本渲染：表格、加粗、列表、代码块） -->
                                             <mdxaml:MarkdownScrollViewer
                                                 Engine="{x:Static helpers:MarkdownConvertHelper.Engine}"
-                                                Markdown="{Binding Content}"
-                                                Background="Transparent">
+                                                Markdown="{Binding Content}">
                                                 <mdxaml:MarkdownScrollViewer.Styles>
                                                     <StyleInclude Source="avares://ClassIsland.Core/Themes/RichTextStyles.axaml"/>
-                                                    <Style Selector="mdxaml|MarkdownScrollViewer">
-                                                        <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
-                                                        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+                                                    <Style Selector="mdxaml|MarkdownScrollViewer /template/ ScrollViewer">
+                                                        <Setter Property="Padding" Value="0"/>
                                                     </Style>
                                                     <Style Selector="avalonia|CTextBlock">
                                                         <Setter Property="FontSize" Value="14"/>
