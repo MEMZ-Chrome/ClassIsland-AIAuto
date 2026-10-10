@@ -92,7 +92,7 @@ public partial class ChatWindow : Window
     private static string BuildSystemPrompt(PluginSettings settings)
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("你是一个专门为 ClassIsland 课表信息显示软件服务的智能助手。");
+        sb.AppendLine("你是一个专门为 ClassIsland 课表信息显示软件服务的智能助手 IslandAgent。");
         sb.AppendLine("你可以根据用户的需求、上传的课表图片或指令，通过调用提供的工具来灵活管理科目 (upsert_subjects)、时间表 (create_time_layout)、" +
                       "每日课表 (set_class_plan)、查询课表详情 (get_schedule_details)、临时调课 (setup_temp_class_plan)、读取修改软件设置 (get_app_settings, update_app_settings)、获取系统时间 (get_current_time) 以及记录更新长期记忆 (update_memory)。");
         if (settings.IsCommandExecutionEnabled)
@@ -213,7 +213,7 @@ public partial class ChatWindow : Window
             {
                 Role = ChatRole.System,
                 TimeString = DateTime.Now.ToString("HH:mm"),
-                Content = "未配置 AI 模型！请先在【设置 -> CI自动化】中选择提供商并设置模型。"
+                Content = "未配置 AI 模型！请先在【设置 -> IslandAgent设置】中选择提供商并设置模型。"
             });
             ScrollToBottom();
             return;

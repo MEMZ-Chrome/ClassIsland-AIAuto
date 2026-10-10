@@ -1,4 +1,4 @@
-# CI自动化 (ClassIsland Automation Plugin)
+# IslandAgent (ClassIsland AI Automation Plugin)
 
 适用于 ClassIsland 的自动化 AI 辅助插件，支持 **ClassIsland 1.x** 与 **ClassIsland 2.x**。
 
@@ -12,7 +12,7 @@
 3. **模型名称自动获取**：点击「自动获取模型列表」按钮直接拉取最新模型，无需手动硬编码模型名。
 4. **自然语言设置调控**：直接在 AI 助手对话框输入指令，可自动调控软件各项配置与偏好。
 5. **快捷入口**：
-   - **设置入口**：位于 ClassIsland「应用设置 -> CI自动化」。
+   - **设置入口**：位于 ClassIsland「应用设置 -> IslandAgent设置」。
    - **对话入口**：点击系统托盘栏图标右键菜单中的「AI助手」即可快速呼出对话窗口。
 
 ## 作者

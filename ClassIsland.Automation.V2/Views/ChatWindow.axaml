@@ -5,7 +5,7 @@
         xmlns:helpers="clr-namespace:ClassIsland.Core.Helpers;assembly=ClassIsland.Core"
         xmlns:avalonia="clr-namespace:ColorTextBlock.Avalonia;assembly=ColorTextBlock.Avalonia"
         x:Class="ClassIsland.Automation.V2.Views.ChatWindow"
-        Title="AI 助手 - CI 自动化" Width="640" Height="720"
+        Title="IslandAgent" Width="640" Height="720"
         WindowStartupLocation="CenterScreen">
     <Grid RowDefinitions="Auto, *, Auto, Auto" Margin="16">
         <!-- 头部说明与状态 -->

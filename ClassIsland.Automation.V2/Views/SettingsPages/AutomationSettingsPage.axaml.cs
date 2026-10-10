@@ -12,7 +12,7 @@ using ClassIsland.Core.Enums.SettingsWindow;
 
 namespace ClassIsland.Automation.V2.Views.SettingsPages;
 
-[SettingsPageInfo("memz.ci.automation.settings", "CI自动化", SettingsPageCategory.External)]
+[SettingsPageInfo("memzchrome.islandagent.settings", "IslandAgent设置", SettingsPageCategory.External)]
 public partial class AutomationSettingsPage : SettingsPageBase
 {
     private PluginSettings _settings;

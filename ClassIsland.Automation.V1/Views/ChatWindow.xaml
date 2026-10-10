@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:ClassIsland.Automation.Core.Models;assembly=ClassIsland.Automation.Core"
         xmlns:mdXaml="clr-namespace:MdXaml;assembly=MdXaml"
-        Title="AI 助手 - CI 自动化" Width="640" Height="720"
+        Title="IslandAgent" Width="640" Height="720"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="16">
         <Grid.RowDefinitions>

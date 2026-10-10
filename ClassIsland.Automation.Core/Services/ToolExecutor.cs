@@ -949,7 +949,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "execute_command",
                 Success = false,
-                Result = "用户未在【设置 -> CI自动化 -> 高级设置】中开启“允许执行命令行命令”权限，命令已被系统拒绝执行。"
+                Result = "用户未在【设置 -> IslandAgent设置 -> 高级偏好】中开启“允许执行命令行命令”权限，命令已被系统拒绝执行。"
             };
         }
 

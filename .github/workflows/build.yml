@@ -3,10 +3,15 @@ name: CI Build & Release
 on:
   push:
     branches: [ "main", "master" ]
-    tags: [ "v*" ]
+    tags:
+      - "*.*.*.*"
+      - "v*"
   pull_request:
     branches: [ "main", "master" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -55,3 +60,26 @@ jobs:
         path: |
           dist\*.zip
           dist\*.cipx
+
+    - name: Publish GitHub Release (Tag Triggered)
+      if: startsWith(github.ref, 'refs/tags/')
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        $tagName = $env:GITHUB_REF_NAME
+        $v1Md5 = (Get-FileHash dist\ClassIsland.Automation.V1.cipx -Algorithm MD5).Hash
+        $v2Md5 = (Get-FileHash dist\ClassIsland.Automation.V2.cipx -Algorithm MD5).Hash
+
+        $releaseNotes = @"
+        ClassIsland AI 自动化插件 $tagName
+
+        ### 📦 插件包文件
+        - **ClassIsland 2.x (Avalonia)**: `ClassIsland.Automation.V2.cipx`
+        - **ClassIsland 1.x (WPF)**: `ClassIsland.Automation.V1.cipx`
+
+        ### 🔐 校验信息 (ClassIsland 插件索引规范)
+        <!-- CLASSISLAND_PKG_MD5 {"ClassIsland.Automation.V1.cipx":"$v1Md5","ClassIsland.Automation.V2.cipx":"$v2Md5"} -->
+        "@
+
+        Set-Content -Path dist\release_notes.md -Value $releaseNotes -Encoding UTF8
+        gh release create $tagName dist\ClassIsland.Automation.V1.cipx dist\ClassIsland.Automation.V2.cipx dist\ClassIsland.Automation.V1.zip dist\ClassIsland.Automation.V2.zip --title "$tagName" --notes-file dist\release_notes.md
