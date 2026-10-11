@@ -1,6 +1,5 @@
 using System.Text.Json;
 using ClassIsland.Automation.Core.Models;
-using ClassIsland.Shared;
 
 namespace ClassIsland.Automation.Core.Services;
 
@@ -26,9 +25,9 @@ public static class SettingsManager
         {
             lock (_lock)
             {
-                if (!_loaded)
+                if (!_loaded && !string.IsNullOrEmpty(_settingsFilePath))
                 {
-                    LoadCore(ResolveDefaultPath());
+                    LoadCore(_settingsFilePath);
                 }
                 return _settings;
             }
@@ -36,12 +35,18 @@ public static class SettingsManager
     }
 
     /// <summary>
-    /// 未显式指定路径时的配置位置，与插件配置目录保持一致。
+    /// 供插件宿主在启动时注册配置路径，使 <see cref="Current"/> 可在任意窗口按需加载。
     /// </summary>
-    private static string ResolveDefaultPath()
+    public static void SetSettingsFilePath(string filePath)
     {
-        var dir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
-        return Path.Combine(dir, "settings.json");
+        lock (_lock)
+        {
+            if (_settingsFilePath != filePath)
+            {
+                _loaded = false;
+            }
+            _settingsFilePath = filePath;
+        }
     }
 
     public static PluginSettings Load(string filePath)
@@ -78,9 +83,11 @@ public static class SettingsManager
     {
         lock (_lock)
         {
-            if (settings != null)
+            // 仅在托管实例尚未建立时接受外部实例，避免后续窗口各持一份配置互相覆盖。
+            if (settings != null && !_loaded)
             {
                 _settings = settings;
+                _loaded = true;
             }
 
             if (!string.IsNullOrEmpty(_settingsFilePath))

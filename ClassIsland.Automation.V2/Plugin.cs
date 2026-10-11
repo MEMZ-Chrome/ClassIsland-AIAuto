@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using ClassIsland.Automation.Core.Services;
 using ClassIsland.Automation.V2.Views;
 using ClassIsland.Automation.V2.Views.SettingsPages;
 using ClassIsland.Core;
@@ -21,6 +22,12 @@ public class Plugin : PluginBase
     public override void Initialize(HostBuilderContext context, IServiceCollection services)
     {
         Instance = this;
+
+        // 注册配置路径，使 SettingsManager.Current 可在任意窗口按需加载，
+        // 避免只打开对话窗口时拿到一份空配置。
+        var configDir = PluginConfigFolder ?? AppContext.BaseDirectory;
+        Directory.CreateDirectory(configDir);
+        SettingsManager.SetSettingsFilePath(Path.Combine(configDir, "settings.json"));
 
         // 1. 注册设置页面
         services.AddSettingsPage<AutomationSettingsPage>();

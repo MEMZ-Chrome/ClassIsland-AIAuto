@@ -37,7 +37,9 @@ public partial class AutomationSettingsPage : SettingsPageBase
         var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
         Directory.CreateDirectory(configDir);
         _settingsFilePath = Path.Combine(configDir, "settings.json");
-        _settings = SettingsManager.Load(_settingsFilePath);
+        // 复用共享实例而不是重新从磁盘加载，避免与对话窗口持有的配置对象分叉。
+        SettingsManager.SetSettingsFilePath(_settingsFilePath);
+        _settings = SettingsManager.Current;
         _settings.EnsureProvidersInitialized();
 
         InitSecurityState();
