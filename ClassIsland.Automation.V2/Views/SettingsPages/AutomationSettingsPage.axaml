@@ -170,8 +170,8 @@
         </ScrollViewer>
 
         <!-- 供应商 添加/编辑 模态弹窗遮罩层 -->
-        <Grid Name="ProviderDialogOverlay" IsVisible="False" Background="#80000000">
-            <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+        <Grid Name="ProviderDialogOverlay" IsVisible="False" Background="#99000000">
+            <Border Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1" CornerRadius="12" Padding="24"
                     Width="480" MaxHeight="620"
@@ -226,7 +226,9 @@
                                     </Grid>
 
                                     <!-- 弹窗中的模型列表展示 -->
-                                    <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}" CornerRadius="6" Padding="6" MaxHeight="160">
+                                    <Border Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
+                                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                            BorderThickness="1" CornerRadius="6" Padding="6" MaxHeight="160">
                                         <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                                             <StackPanel Name="DialogModelsContainer" Spacing="4"/>
                                         </ScrollViewer>
