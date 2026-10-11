@@ -324,7 +324,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var emptyText = new TextBlock
             {
-                Text = "暂无配置的供应商。请点击上方「+ 添加供应商」开始添加！",
+                Text = "暂无供应商",
                 Foreground = Brushes.Gray,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
             };
@@ -434,7 +434,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             var modelsStack = new StackPanel { Spacing = 6 };
             var modelsLabel = new TextBlock
             {
-                Text = "已配置模型（勾选将在对话界面顶部供切换）：",
+                Text = "模型列表",
                 FontSize = 11,
                 Foreground = Brushes.Gray
             };
@@ -444,7 +444,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             {
                 var noModelsText = new TextBlock
                 {
-                    Text = "(暂无模型，点击「编辑」添加或自动获取)",
+                    Text = "(暂无模型)",
                     FontSize = 11,
                     Foreground = Brushes.Gray,
                     FontStyle = FontStyle.Italic
@@ -518,7 +518,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             var hint = new TextBlock
             {
-                Text = "暂无模型。请在上方输入添加，或点击「自动获取模型列表」。",
+                Text = "暂无模型",
                 Foreground = Brushes.Gray,
                 FontSize = 12,
                 Margin = new Thickness(4)

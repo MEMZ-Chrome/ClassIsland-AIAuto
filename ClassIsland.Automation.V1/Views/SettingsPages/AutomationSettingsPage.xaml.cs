@@ -300,6 +300,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
         ShowToast($"已填入「{name}」预置地址，请填写密钥后点击自动获取模型。");
     }
 
+    /// <summary>
+    /// 读取主题画刷；资源缺失时回退到默认值，避免深色主题下出现写死的浅色背景。
+    /// </summary>
+    private Brush ThemeBrush(string key, Brush fallback)
+        => TryFindResource(key) as Brush ?? fallback;
+
     private void RenderProvidersList()
     {
         if (ProvidersListContainer == null) return;
@@ -309,8 +315,8 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             var emptyBorder = new Border
             {
-                Background = Brushes.White,
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDD")),
+                Background = ThemeBrush("MaterialDesignCardBackground", Brushes.White),
+                BorderBrush = ThemeBrush("MaterialDesignDivider", Brushes.LightGray),
                 BorderThickness = new Thickness(1, 1, 1, 1),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(24, 24, 24, 24),
@@ -318,7 +324,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             };
             var emptyText = new TextBlock
             {
-                Text = "暂无配置的供应商。请点击上方「+ 添加供应商」开始添加！",
+                Text = "暂无供应商",
                 Foreground = Brushes.Gray,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
@@ -331,8 +337,8 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             var card = new Border
             {
-                Background = Brushes.White,
-                BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DDD")),
+                Background = ThemeBrush("MaterialDesignCardBackground", Brushes.White),
+                BorderBrush = ThemeBrush("MaterialDesignDivider", Brushes.LightGray),
                 BorderThickness = new Thickness(1, 1, 1, 1),
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(16, 16, 16, 16),
@@ -410,7 +416,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             var divider = new Border
             {
                 Height = 1,
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#EEE")),
+                Background = ThemeBrush("MaterialDesignDivider", Brushes.LightGray),
                 Margin = new Thickness(0, 8, 0, 8)
             };
             mainStack.Children.Add(divider);
@@ -419,7 +425,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             var modelsStack = new StackPanel();
             var modelsLabel = new TextBlock
             {
-                Text = "已配置模型（勾选将在对话界面顶部供切换）：",
+                Text = "模型列表",
                 FontSize = 11,
                 Foreground = Brushes.Gray,
                 Margin = new Thickness(0, 0, 0, 6)
@@ -430,7 +436,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             {
                 var noModelsText = new TextBlock
                 {
-                    Text = "(暂无模型，点击「编辑」添加或自动获取)",
+                    Text = "(暂无模型)",
                     FontSize = 11,
                     Foreground = Brushes.Gray,
                     FontStyle = FontStyles.Italic
@@ -504,7 +510,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             var hint = new TextBlock
             {
-                Text = "暂无模型。请在上方输入添加，或点击「自动获取模型列表」。",
+                Text = "暂无模型",
                 Foreground = Brushes.Gray,
                 FontSize = 12,
                 Margin = new Thickness(4, 4, 4, 4)
