@@ -198,8 +198,21 @@ public class PluginSettings
                 deepseek.Models.Add(new AiModelItem(DeepSeekModel, true));
             }
 
+            var openrouter = new AiProviderConfig
+            {
+                Name = "OpenRouter",
+                BaseUrl = "https://openrouter.ai/api/v1",
+                ApiKey = "",
+                Models = new List<AiModelItem>
+                {
+                    new AiModelItem("openai/gpt-4o-mini", true),
+                    new AiModelItem("deepseek/deepseek-chat", true)
+                }
+            };
+
             Providers.Add(mimo);
             Providers.Add(deepseek);
+            Providers.Add(openrouter);
 
             if (!string.IsNullOrWhiteSpace(CustomApiKey) || !string.IsNullOrWhiteSpace(CustomModel))
             {
@@ -221,9 +234,27 @@ public class PluginSettings
             {
                 AiProviderType.MiMo => mimo.Id,
                 AiProviderType.DeepSeek => deepseek.Id,
-                _ => Providers.Last().Id
+                _ => Providers.First().Id
             };
             ActiveModelName = CurrentModel;
+        }
+        else
+        {
+            // 若现有配置中尚未包含 OpenRouter，自动补充此预置提供商
+            if (!Providers.Any(p => p.Name.Equals("OpenRouter", StringComparison.OrdinalIgnoreCase) || p.BaseUrl.Contains("openrouter.ai")))
+            {
+                Providers.Add(new AiProviderConfig
+                {
+                    Name = "OpenRouter",
+                    BaseUrl = "https://openrouter.ai/api/v1",
+                    ApiKey = "",
+                    Models = new List<AiModelItem>
+                    {
+                        new AiModelItem("openai/gpt-4o-mini", true),
+                        new AiModelItem("deepseek/deepseek-chat", true)
+                    }
+                });
+            }
         }
     }
 

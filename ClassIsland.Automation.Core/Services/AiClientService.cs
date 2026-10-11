@@ -33,6 +33,8 @@ public class AiClientService
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.TryAddWithoutValidation("HTTP-Referer", "https://github.com/MEMZ-Chrome/ClassIsland-AIAuto");
+        request.Headers.TryAddWithoutValidation("X-Title", "ClassIsland IslandAgent");
         if (!string.IsNullOrWhiteSpace(apiKey))
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
@@ -98,6 +100,8 @@ public class AiClientService
             {
                 Content = new StringContent(requestPayload.ToJsonString(), Encoding.UTF8, "application/json")
             };
+            request.Headers.TryAddWithoutValidation("HTTP-Referer", "https://github.com/MEMZ-Chrome/ClassIsland-AIAuto");
+            request.Headers.TryAddWithoutValidation("X-Title", "ClassIsland IslandAgent");
 
             if (!string.IsNullOrWhiteSpace(settings.CurrentApiKey))
             {

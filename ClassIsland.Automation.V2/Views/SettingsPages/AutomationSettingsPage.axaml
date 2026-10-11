@@ -65,7 +65,7 @@
 
                                     <!-- 供应商别名 -->
                                     <TextBlock Text="供应商别名 (Alias)" FontWeight="SemiBold"/>
-                                    <TextBox Name="ProviderNameTextBox" Watermark="例如: 小米 MiMo、DeepSeek、自建Ollama..."/>
+                                    <TextBox Name="ProviderNameTextBox" Watermark="例如: 小米 MiMo、DeepSeek、OpenRouter、自建Ollama..."/>
 
                                     <!-- API 地址 -->
                                     <TextBlock Text="API 地址 (Base URL)" FontWeight="SemiBold"/>

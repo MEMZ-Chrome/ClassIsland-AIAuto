@@ -8,6 +8,7 @@
 2. **多大模型提供商支持**：
    - **小米 MiMo**：默认地址 `https://api.xiaomimimo.com/v1`，填入 API Key 即可。
    - **DeepSeek**：默认地址 `https://api.deepseek.com`，填入 API Key 即可。
+   - **OpenRouter**：默认地址 `https://openrouter.ai/api/v1`，填入 API Key 即可，聚合调用数百种海内外前沿模型。
    - **自定义提供商**：兼容所有标准 OpenAI 格式接口。
 3. **模型名称自动获取**：点击「自动获取模型列表」按钮直接拉取最新模型，无需手动硬编码模型名。
 4. **自然语言设置调控**：直接在 AI 助手对话框输入指令，可自动调控软件各项配置与偏好。
