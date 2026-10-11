@@ -71,7 +71,7 @@
                                         </Style>
                                     </StackPanel.Style>
                                     <StackPanel Orientation="Horizontal" Margin="4,0,0,2">
-                                        <TextBlock Text="🤖 AI 助手" FontWeight="SemiBold" FontSize="12" Foreground="#333" Margin="0,0,6,0"/>
+                                        <TextBlock Text="AI 助手" FontWeight="SemiBold" FontSize="12" Foreground="#333" Margin="0,0,6,0"/>
                                         <TextBlock Text="{Binding TimeString}" FontSize="11" Foreground="Gray"/>
                                     </StackPanel>
                                     <Border Background="#F3F3F3" BorderBrush="#E0E0E0" BorderThickness="1"
@@ -136,9 +136,9 @@
 
         <!-- 图片状态栏 -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,6">
-            <Button Name="SelectImageButton" Content="📎 添加课表图片" Padding="8,4"/>
+            <Button Name="SelectImageButton" Content="添加课表图片" Padding="8,4"/>
             <TextBlock Name="ImageStatusTextBlock" VerticalAlignment="Center" Foreground="Gray" Text="未选择图片" Margin="8,0,8,0"/>
-            <Button Name="ClearImageButton" Content="✕ 清除" Visibility="Collapsed" Padding="8,4"/>
+            <Button Name="ClearImageButton" Content="清除" Visibility="Collapsed" Padding="8,4"/>
         </StackPanel>
 
         <!-- 输入与发送（支持回车发送，Shift+Enter换行） -->

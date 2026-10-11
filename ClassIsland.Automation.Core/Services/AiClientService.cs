@@ -18,7 +18,7 @@ public class AiClientService
     }
 
     /// <summary>
-    /// 获取提供商支持的模型列表
+    /// 获取提供商支持的模型列表（兼容标准 OpenAI /models、/v1/models 以及 Ollama /api/tags）
     /// </summary>
     public async Task<List<string>> FetchModelsAsync(string baseUrl, string apiKey, CancellationToken cancellationToken = default)
     {
@@ -26,37 +26,81 @@ public class AiClientService
         if (string.IsNullOrWhiteSpace(baseUrl))
             return models;
 
-        var url = baseUrl.TrimEnd('/');
-        if (!url.EndsWith("/models"))
+        var cleanBase = baseUrl.TrimEnd('/');
+        var candidateUrls = new List<string>();
+
+        if (cleanBase.EndsWith("/models", StringComparison.OrdinalIgnoreCase))
         {
-            url += "/models";
+            candidateUrls.Add(cleanBase);
         }
-
-        using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.TryAddWithoutValidation("HTTP-Referer", "https://github.com/MEMZ-Chrome/ClassIsland-AIAuto");
-        request.Headers.TryAddWithoutValidation("X-Title", "ClassIsland IslandAgent");
-        if (!string.IsNullOrWhiteSpace(apiKey))
+        else
         {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
-        }
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        using var doc = JsonDocument.Parse(json);
-        if (doc.RootElement.TryGetProperty("data", out var dataElement) && dataElement.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var item in dataElement.EnumerateArray())
+            candidateUrls.Add($"{cleanBase}/models");
+            if (!cleanBase.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
             {
-                if (item.TryGetProperty("id", out var idElement))
+                candidateUrls.Add($"{cleanBase}/v1/models");
+            }
+            candidateUrls.Add($"{cleanBase}/api/tags");
+        }
+
+        foreach (var url in candidateUrls)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.TryAddWithoutValidation("HTTP-Referer", "https://github.com/MEMZ-Chrome/ClassIsland-AIAuto");
+                request.Headers.TryAddWithoutValidation("X-Title", "ClassIsland IslandAgent");
+                if (!string.IsNullOrWhiteSpace(apiKey))
                 {
-                    var id = idElement.GetString();
-                    if (!string.IsNullOrWhiteSpace(id))
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey.Trim());
+                }
+
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+                if (!response.IsSuccessStatusCode)
+                    continue;
+
+                var json = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var doc = JsonDocument.Parse(json);
+
+                // 兼容标准 OpenAI 格式: { "data": [ { "id": "..." } ] }
+                if (doc.RootElement.TryGetProperty("data", out var dataElement) && dataElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in dataElement.EnumerateArray())
                     {
-                        models.Add(id);
+                        if (item.TryGetProperty("id", out var idElement))
+                        {
+                            var id = idElement.GetString();
+                            if (!string.IsNullOrWhiteSpace(id))
+                            {
+                                models.Add(id);
+                            }
+                        }
                     }
                 }
+                // 兼容 Ollama /api/tags 格式: { "models": [ { "name": "..." } ] }
+                else if (doc.RootElement.TryGetProperty("models", out var modelsElement) && modelsElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var item in modelsElement.EnumerateArray())
+                    {
+                        if (item.TryGetProperty("name", out var nameElement))
+                        {
+                            var name = nameElement.GetString();
+                            if (!string.IsNullOrWhiteSpace(name))
+                            {
+                                models.Add(name);
+                            }
+                        }
+                    }
+                }
+
+                if (models.Count > 0)
+                {
+                    break;
+                }
+            }
+            catch
+            {
+                // 忽略当前候选地址异常，尝试下一个
             }
         }
 

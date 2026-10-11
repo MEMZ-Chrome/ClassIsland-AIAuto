@@ -58,11 +58,6 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             if (ToastBorder == null || ToastMessageTextBlock == null) return;
             ToastMessageTextBlock.Text = message;
-            if (ToastIconTextBlock != null)
-            {
-                ToastIconTextBlock.Text = isError ? "⚠️" : "✓";
-                ToastIconTextBlock.Foreground = isError ? Brushes.OrangeRed : Brushes.LightGreen;
-            }
             ToastBorder.IsVisible = true;
 
             _toastTimer?.Stop();
@@ -274,15 +269,13 @@ public partial class AutomationSettingsPage : SettingsPageBase
         if (PresetButtonsWrapPanel == null) return;
         PresetButtonsWrapPanel.Children.Clear();
 
-        var presets = new (string Name, string Url, string[] Models)[]
+        var presets = new (string Name, string Url)[]
         {
-            ("DeepSeek", "https://api.deepseek.com", new[] { "deepseek-chat", "deepseek-reasoner" }),
-            ("OpenRouter", "https://openrouter.ai/api/v1", new[] { "openai/gpt-4o-mini", "deepseek/deepseek-chat", "anthropic/claude-3.5-sonnet" }),
-            ("小米 MiMo", "https://api.xiaomimimo.com/v1", new[] { "mimo-v1" }),
-            ("OpenAI", "https://api.openai.com/v1", new[] { "gpt-4o", "gpt-4o-mini" }),
-            ("智谱清言", "https://open.bigmodel.cn/api/paas/v4", new[] { "glm-4-flash", "glm-4" }),
-            ("月之暗面", "https://api.moonshot.cn/v1", new[] { "moonshot-v1-8k", "moonshot-v1-32k" }),
-            ("自建 Ollama", "http://localhost:11434/v1", new[] { "qwen2.5:7b", "llama3.1:8b" })
+            ("DeepSeek", "https://api.deepseek.com"),
+            ("OpenRouter", "https://openrouter.ai/api/v1"),
+            ("小米 MiMo", "https://api.xiaomimimo.com/v1"),
+            ("OpenAI", "https://api.openai.com/v1"),
+            ("自建 Ollama", "http://localhost:11434/v1")
         };
 
         foreach (var p in presets)
@@ -294,25 +287,17 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 Margin = new Thickness(0, 0, 6, 6),
                 FontSize = 11
             };
-            btn.Click += (_, _) => ApplyPreset(p.Name, p.Url, p.Models.ToList());
+            btn.Click += (_, _) => ApplyPreset(p.Name, p.Url);
             PresetButtonsWrapPanel.Children.Add(btn);
         }
     }
 
-    private void ApplyPreset(string name, string baseUrl, List<string> defaultModels)
+    private void ApplyPreset(string name, string baseUrl)
     {
         if (DialogNameTextBox != null) DialogNameTextBox.Text = name;
         if (DialogBaseUrlTextBox != null) DialogBaseUrlTextBox.Text = baseUrl;
 
-        foreach (var dm in defaultModels)
-        {
-            if (!_dialogModels.Any(m => m.Name.Equals(dm, StringComparison.OrdinalIgnoreCase)))
-            {
-                _dialogModels.Add(new AiModelItem(dm, true));
-            }
-        }
-        RenderDialogModels();
-        ShowToast($"已填入「{name}」预置配置！");
+        ShowToast($"已填入「{name}」预置地址，请填写密钥后点击自动获取模型。");
     }
 
     private void RenderProvidersList()
@@ -400,7 +385,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var editBtn = new Button
             {
-                Content = "✏️ 编辑",
+                Content = "编辑",
                 Padding = new Thickness(10, 4)
             };
             editBtn.Click += (_, _) => OpenEditProviderDialog(provider);
@@ -408,7 +393,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var delBtn = new Button
             {
-                Content = "🗑️ 删除",
+                Content = "删除",
                 Padding = new Thickness(10, 4)
             };
             delBtn.Click += (_, _) =>
@@ -563,7 +548,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var delBtn = new Button
             {
-                Content = "✕",
+                Content = "删除",
                 Padding = new Thickness(8, 2),
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
             };
@@ -775,7 +760,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                     UpdateSecurityStateUi();
                     if (TotpVerifyResultTextBlock != null)
                     {
-                        TotpVerifyResultTextBlock.Text = "✅ 验证通过！TOTP 动态口令已正式生效保护。";
+                        TotpVerifyResultTextBlock.Text = "验证通过！TOTP 动态口令已正式生效保护。";
                         TotpVerifyResultTextBlock.Foreground = new SolidColorBrush(Colors.Green);
                     }
                     ShowToast("TOTP 动态口令已正式激活！");
@@ -784,7 +769,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 {
                     if (TotpVerifyResultTextBlock != null)
                     {
-                        TotpVerifyResultTextBlock.Text = "❌ 验证码错误或已失效，请确认手环/手机当前时间并重试。";
+                        TotpVerifyResultTextBlock.Text = "验证码错误或已失效，请确认手环/手机当前时间并重试。";
                         TotpVerifyResultTextBlock.Foreground = new SolidColorBrush(Colors.Red);
                     }
                     ShowToast("TOTP 验证失败，请重试！", isError: true);
@@ -820,7 +805,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         if (PasswordStatusTextBlock != null)
         {
             bool hasPwd = SecurityService.HasPassword(_settings);
-            PasswordStatusTextBlock.Text = hasPwd ? "当前状态：已设置固定密码 🔒" : "当前状态：未设置固定密码（默认无密码）";
+            PasswordStatusTextBlock.Text = hasPwd ? "当前状态：已设置固定密码" : "当前状态：未设置固定密码（默认无密码）";
             if (ClearPasswordButton != null) ClearPasswordButton.IsVisible = hasPwd;
         }
 
@@ -828,14 +813,14 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             if (SecurityService.HasActiveTotp(_settings))
             {
-                TotpStatusTextBlock.Text = "当前状态：✅ TOTP 动态口令已正式激活生效保护";
+                TotpStatusTextBlock.Text = "当前状态：TOTP 动态口令已正式激活生效保护";
                 if (SetupTotpButton != null) SetupTotpButton.Content = "重新配置 TOTP";
                 if (DisableTotpButton != null) DisableTotpButton.IsVisible = true;
                 if (TotpSetupCard != null) TotpSetupCard.IsVisible = false;
             }
             else if (SecurityService.HasPendingTotp(_settings))
             {
-                TotpStatusTextBlock.Text = "当前状态：⚠️ 发现暂存的待验证 TOTP（在输入正确动态码前绝不生效）";
+                TotpStatusTextBlock.Text = "当前状态：发现暂存的待验证 TOTP（在输入正确动态码前绝不生效）";
                 if (SetupTotpButton != null) SetupTotpButton.Content = "重新生成 TOTP";
                 if (DisableTotpButton != null) DisableTotpButton.IsVisible = false;
                 DisplayTotpSetupCard(_settings.PendingTotpSecret);

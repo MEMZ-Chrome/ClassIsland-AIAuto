@@ -14,7 +14,7 @@
                 MaxWidth="480" VerticalAlignment="Center" HorizontalAlignment="Center">
             <StackPanel Spacing="16">
                 <StackPanel Spacing="6" HorizontalAlignment="Center">
-                    <TextBlock Text="🔐 安全访问保护" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="安全访问保护" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center"/>
                     <TextBlock Text="本页面涉及 AI 密钥、高级权限与自动化配置，已启用安全保护。"
                                FontSize="12" Foreground="Gray" TextWrapping="Wrap" TextAlignment="Center"/>
                 </StackPanel>
@@ -29,7 +29,7 @@
                 </StackPanel>
 
                 <TextBlock Name="LockHintTextBlock" FontSize="11" Foreground="#1976D2" TextWrapping="Wrap"
-                           Text="💡 提示：若仅设置了待验证的暂存 TOTP 且未设固定密码，页面不会被锁定；在完成验证前 TOTP 绝不生效。"/>
+                           Text="提示：若仅设置了待验证的暂存 TOTP 且未设固定密码，页面不会被锁定；在完成验证前 TOTP 绝不生效。"/>
             </StackPanel>
         </Border>
 
@@ -78,7 +78,7 @@
                                 <StackPanel Spacing="8">
                                     <CheckBox Name="IsMemoryEnabledCheckBox" Content="启用 AI 长期记忆系统（允许 AI 记录并应用用户偏好与习惯）" IsChecked="True"/>
                                     <CheckBox Name="IsCommandExecutionEnabledCheckBox" Content="允许 AI 执行命令行命令（CMD / 脚本联动，实验性权限）"/>
-                                    <TextBlock Text="⚠️ 命令行权限开启后，AI 可调用控制台执行终端指令，请仅在信任当前模型与操作时启用。" FontSize="11" Foreground="#E65100" Margin="28,-4,0,0"/>
+                                    <TextBlock Text="[注意] 命令行权限开启后，AI 可调用控制台执行终端指令，请仅在信任当前模型与操作时启用。" FontSize="11" Foreground="#E65100" Margin="28,-4,0,0"/>
                                 </StackPanel>
 
                                 <!-- 自定义系统提示词 -->
@@ -145,7 +145,7 @@
                                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                                                 BorderThickness="1" CornerRadius="6" Padding="12">
                                             <StackPanel Spacing="12">
-                                                <TextBlock Text="💡 提示：在学校若暂时无法连接手机或同步手环，您可以将下方密钥字符串或二维码拍照/记录带回。在首次成功输入 6 位验证码前，TOTP 绝对不会生效，绝不会导致卡死或无法进入设置！"
+                                                <TextBlock Text="提示：在学校若暂时无法连接手机或同步手环，您可以将下方密钥字符串或二维码拍照/记录带回。在首次成功输入 6 位验证码前，TOTP 绝对不会生效，绝不会导致卡死或无法进入设置！"
                                                            FontSize="12" Foreground="#1976D2" TextWrapping="Wrap"/>
 
                                                 <!-- 密钥字符串展示与复制 -->
@@ -205,7 +205,7 @@
                     <!-- 弹窗标题与关闭 -->
                     <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,16">
                         <TextBlock Name="DialogTitleTextBlock" Text="添加供应商" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <Button Name="DialogCloseButton" Grid.Column="1" Content="✕" Padding="8,4" VerticalAlignment="Center"/>
+                        <Button Name="DialogCloseButton" Grid.Column="1" Content="关闭" Padding="8,4" VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- 弹窗滚动表单内容 -->
@@ -278,10 +278,7 @@
                 Margin="0,20,0,0" CornerRadius="8"
                 Background="#242424" BorderBrush="#0078D4" BorderThickness="1"
                 Padding="18,10">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Name="ToastIconTextBlock" Text="✓" Foreground="#4CAF50" FontWeight="Bold" VerticalAlignment="Center"/>
-                <TextBlock Name="ToastMessageTextBlock" Foreground="White" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-            </StackPanel>
+            <TextBlock Name="ToastMessageTextBlock" Foreground="White" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
         </Border>
     </Grid>
 </ci:SettingsPageBase>

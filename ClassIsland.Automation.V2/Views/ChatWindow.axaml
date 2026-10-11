@@ -44,7 +44,7 @@
                                 <!-- AI 助手消息气泡（左对齐，支持 Markdown 表格与排版渲染） -->
                                 <StackPanel IsVisible="{Binding IsAssistant}" HorizontalAlignment="Left" MaxWidth="500" Margin="0,0,30,0">
                                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,0,0,2">
-                                        <TextBlock Text="🤖 AI 助手" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                        <TextBlock Text="AI 助手" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                         <TextBlock Text="{Binding TimeString}" FontSize="11" Foreground="Gray"/>
                                     </StackPanel>
                                     <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
@@ -99,9 +99,9 @@
 
         <!-- 图片状态栏 -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,8,0,6">
-            <Button Name="SelectImageButton" Content="📎 添加课表图片"/>
+            <Button Name="SelectImageButton" Content="添加课表图片"/>
             <TextBlock Name="ImageStatusTextBlock" VerticalAlignment="Center" Foreground="Gray" Text="未选择图片"/>
-            <Button Name="ClearImageButton" Content="✕ 清除" IsVisible="False"/>
+            <Button Name="ClearImageButton" Content="清除" IsVisible="False"/>
         </StackPanel>
 
         <!-- 输入与发送（支持回车发送，Shift+Enter换行） -->

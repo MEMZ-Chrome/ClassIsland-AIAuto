@@ -203,11 +203,7 @@ public class PluginSettings
                 Name = "OpenRouter",
                 BaseUrl = "https://openrouter.ai/api/v1",
                 ApiKey = "",
-                Models = new List<AiModelItem>
-                {
-                    new AiModelItem("openai/gpt-4o-mini", true),
-                    new AiModelItem("deepseek/deepseek-chat", true)
-                }
+                Models = new List<AiModelItem>()
             };
 
             Providers.Add(mimo);
@@ -248,11 +244,7 @@ public class PluginSettings
                     Name = "OpenRouter",
                     BaseUrl = "https://openrouter.ai/api/v1",
                     ApiKey = "",
-                    Models = new List<AiModelItem>
-                    {
-                        new AiModelItem("openai/gpt-4o-mini", true),
-                        new AiModelItem("deepseek/deepseek-chat", true)
-                    }
+                    Models = new List<AiModelItem>()
                 });
             }
         }
