@@ -11,8 +11,7 @@
                 Background="{DynamicResource MaterialDesignCardBackground}"
                 BorderBrush="{DynamicResource MaterialDesignDivider}"
                 BorderThickness="1" CornerRadius="12" Padding="28"
-                MaxWidth="440" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <StackPanel>
+                MaxWidth="440" VerticalAlignment="Center" HorizontalAlignment="Center">            <StackPanel>
                 <TextBlock Text="安全访问保护" FontSize="20" FontWeight="SemiBold"
                            HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
@@ -202,7 +201,7 @@
             <Border Background="{DynamicResource MaterialDesignCardBackground}"
                     BorderBrush="{DynamicResource MaterialDesignDivider}"
                     BorderThickness="1" CornerRadius="12" Padding="24"
-                    MaxWidth="520" MaxHeight="620"
+                    Width="480" MaxHeight="620"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>

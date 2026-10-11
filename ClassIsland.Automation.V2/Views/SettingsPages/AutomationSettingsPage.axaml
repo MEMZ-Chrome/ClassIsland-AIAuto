@@ -174,7 +174,7 @@
             <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1" CornerRadius="12" Padding="24"
-                    MaxWidth="520" MaxHeight="620"
+                    Width="480" MaxHeight="620"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid RowDefinitions="Auto, *">
                     <!-- 弹窗标题与关闭 -->

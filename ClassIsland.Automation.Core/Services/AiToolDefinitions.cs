@@ -289,8 +289,95 @@ public static class AiToolDefinitions
                             ["customSettings"] = new JsonObject
                             {
                                 ["type"] = "object",
-                                ["description"] = "其他支持的任意设置项键值对"
-                            }
+                                ["description"] = "其他支持的设置项键值对（键名需在白名单内，如 showWeekDay、isMainWindowTopmost、isAutoStartupEnabled）"
+                            },
+                            ["timeOffset"] = new JsonObject
+                            {
+                                ["type"] = "number",
+                                ["description"] = "timeOffsetSeconds 的别名"
+                            },
+                            ["showDate"] = new JsonObject { ["type"] = "boolean", ["description"] = "主界面是否显示日期" },
+                            ["showWeekDay"] = new JsonObject { ["type"] = "boolean", ["description"] = "主界面是否显示星期" },
+                            ["showSecond"] = new JsonObject { ["type"] = "boolean", ["description"] = "时钟是否显示秒" },
+                            ["isMainWindowVisible"] = new JsonObject { ["type"] = "boolean", ["description"] = "主窗口是否显示" },
+                            ["isMainWindowTopmost"] = new JsonObject { ["type"] = "boolean", ["description"] = "主窗口是否置顶" },
+                            ["isMousePenetrationEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启鼠标穿透" },
+                            ["hideOnMaxWindow"] = new JsonObject { ["type"] = "boolean", ["description"] = "窗口最大化时是否自动隐藏" },
+                            ["isTimeAutoAdjustEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启网络时间自动校准" },
+                            ["isClassChangingNotificationEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启下课/换课提醒" },
+                            ["isWeatherNotificationEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启天气提醒" },
+                            ["isAfterClassNotificationEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启放学提醒" },
+                            ["isAutoStartupEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开机自启动" },
+                            ["isStartupUpdateCheckEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否在启动时检查更新" },
+                            ["isSleepModeEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启休眠模式（关闭全部提醒）" },
+                            ["isDebugEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启调试模式" },
+                            ["selectedProfile"] = new JsonObject { ["type"] = "string", ["description"] = "当前启用的档案名称" }
+                        },
+                        ["required"] = new JsonArray()
+                    }
+                }
+            },
+
+            // 9b. 读取本插件（IslandAgent）自身的设置
+            new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "get_plugin_settings",
+                    ["description"] = "读取 IslandAgent 插件自身的设置：全部 AI 供应商（别名、Base URL、是否已配置密钥、模型及启用状态）、当前生效模型、长期记忆开关、命令行权限、自定义提示词与长期记忆内容、密码与 TOTP 保护状态。当用户询问“我配了哪些模型/供应商”“现在用的是哪个模型”“记忆里有什么”时调用。出于安全考虑不会返回 API 密钥明文。",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject(),
+                        ["required"] = new JsonArray()
+                    }
+                }
+            },
+
+            // 9c. 修改本插件（IslandAgent）自身的设置
+            new JsonObject
+            {
+                ["type"] = "function",
+                ["function"] = new JsonObject
+                {
+                    ["name"] = "update_plugin_settings",
+                    ["description"] = "修改 IslandAgent 插件自身的设置并立即保存生效。可新增/修改/删除 AI 供应商，增删与启停模型，切换当前使用的模型，开关长期记忆与命令行权限，改写自定义提示词与长期记忆内容。当用户说“添加一个 xxx 供应商”“把模型换成 xxx”“关掉记忆”“记住我的提示词”时调用。",
+                    ["parameters"] = new JsonObject
+                    {
+                        ["type"] = "object",
+                        ["properties"] = new JsonObject
+                        {
+                            ["action"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["enum"] = new JsonArray
+                                {
+                                    "add_provider", "set_provider", "delete_provider",
+                                    "add_model", "remove_model", "enable_model", "disable_model",
+                                    "set_active_model"
+                                },
+                                ["description"] = "操作类型。仅修改开关/提示词/记忆时可省略此参数"
+                            },
+                            ["providerName"] = new JsonObject
+                            {
+                                ["type"] = "string",
+                                ["description"] = "目标供应商的别名或 Id（支持模糊匹配），用于 set_provider / delete_provider / 模型相关操作"
+                            },
+                            ["newName"] = new JsonObject { ["type"] = "string", ["description"] = "set_provider 时的新别名" },
+                            ["baseUrl"] = new JsonObject { ["type"] = "string", ["description"] = "供应商的 API 地址，例如 https://api.deepseek.com" },
+                            ["apiKey"] = new JsonObject { ["type"] = "string", ["description"] = "供应商的 API 密钥（会加密存储）" },
+                            ["models"] = new JsonObject
+                            {
+                                ["type"] = "array",
+                                ["description"] = "add_provider 时一并写入并启用的模型名称列表",
+                                ["items"] = new JsonObject { ["type"] = "string" }
+                            },
+                            ["modelName"] = new JsonObject { ["type"] = "string", ["description"] = "模型名称，用于模型增删启停与切换当前模型" },
+                            ["isMemoryEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否启用长期记忆系统" },
+                            ["isCommandExecutionEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否允许 AI 执行命令行命令" },
+                            ["customPrompt"] = new JsonObject { ["type"] = "string", ["description"] = "自定义系统提示词全文" },
+                            ["customMemory"] = new JsonObject { ["type"] = "string", ["description"] = "长期记忆全文（会覆盖原有内容）" }
                         },
                         ["required"] = new JsonArray()
                     }

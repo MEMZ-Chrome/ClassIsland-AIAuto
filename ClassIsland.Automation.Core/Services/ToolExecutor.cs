@@ -9,6 +9,31 @@ namespace ClassIsland.Automation.Core.Services;
 
 public class ToolExecutor
 {
+    /// <summary>
+    /// 可供 AI 读取与修改的 ClassIsland 宿主设置项白名单。
+    /// 仅包含标量类型，避免误改集合类设置导致应用异常。
+    /// </summary>
+    private static readonly string[] AppSettingPropertyNames =
+    [
+        // 时间与计时
+        "TimeOffsetSeconds", "IsTimeAutoAdjustEnabled", "TimeAutoAdjustInterval",
+        // 通知
+        "IsNotificationEnabled", "IsClassPrepareNotificationEnabled",
+        "IsClassOffNotificationEnabled", "IsClassChangingNotificationEnabled",
+        "IsWeatherNotificationEnabled", "IsAfterClassNotificationEnabled",
+        // 外观
+        "Theme", "Opacity", "Scale", "ShowDate", "ShowWeekDay",
+        "ShowSecond", "IsClockSecondsVisible", "IsMainWindowVisible",
+        // 窗口行为
+        "HideOnClass", "HideOnFullscreen", "HideOnMaxWindow",
+        "IsMainWindowTopmost", "IsMousePenetrationEnabled",
+        // 启动与关闭
+        "IsAutoStartupEnabled", "IsSentryEnabled", "IsDebugEnabled",
+        "IsStartupUpdateCheckEnabled",
+        // 档案
+        "SelectedProfile", "IsSleepModeEnabled",
+    ];
+
     private readonly IPublicProfileService? _profileService;
     private readonly IPublicUriNavigationService? _uriService;
     private readonly PluginSettings? _pluginSettings;
@@ -68,6 +93,12 @@ public class ToolExecutor
 
                 case "execute_command":
                     return ExecuteCommand(toolCall.Id, args);
+
+                case "get_plugin_settings":
+                    return ExecuteGetPluginSettings(toolCall.Id);
+
+                case "update_plugin_settings":
+                    return ExecuteUpdatePluginSettings(toolCall.Id, args);
 
                 default:
                     return new ToolExecutionResult
@@ -615,25 +646,40 @@ public class ToolExecutor
 
         var resultObj = new JsonObject();
         var type = settingsObj.GetType();
-        string[] keyProps = [
-            "TimeOffsetSeconds",
-            "IsNotificationEnabled", "Theme", "Opacity", "Scale",
-            "HideOnClass", "HideOnFullscreen", "HideOnMaxWindow",
-            "ShowDate", "IsDebugEnabled", "SelectedProfile",
-            "IsClassPrepareNotificationEnabled", "IsClassOffNotificationEnabled",
-            "IsClassChangingNotificationEnabled"
-        ];
 
-        foreach (var propName in keyProps)
+        foreach (var propName in AppSettingPropertyNames)
         {
             var p = type.GetProperty(propName);
-            if (p != null)
+            if (p == null) continue;
+
+            object? val;
+            try { val = p.GetValue(settingsObj); }
+            catch { continue; }
+
+            switch (val)
             {
-                var val = p.GetValue(settingsObj);
-                if (val is bool b) resultObj[propName] = b;
-                else if (val is int i) resultObj[propName] = i;
-                else if (val is double d) resultObj[propName] = d;
-                else if (val != null) resultObj[propName] = val.ToString();
+                case null:
+                    break;
+                case bool b:
+                    resultObj[propName] = b;
+                    break;
+                case int i:
+                    resultObj[propName] = i;
+                    break;
+                case double d:
+                    resultObj[propName] = d;
+                    break;
+                case string s:
+                    resultObj[propName] = s;
+                    break;
+                case Enum e:
+                    resultObj[propName] = Convert.ToInt32(e);
+                    break;
+                case System.Collections.IEnumerable:
+                    break;
+                default:
+                    resultObj[propName] = val.ToString();
+                    break;
             }
         }
 
@@ -663,35 +709,62 @@ public class ToolExecutor
         var type = settingsObj.GetType();
         var updatedList = new List<string>();
 
-        void TrySetProp(string propName, object value)
+        bool TrySetProp(string propName, JsonNode? node)
         {
+            if (node == null) return false;
             var p = type.GetProperty(propName);
-            if (p != null && p.CanWrite)
+            if (p == null || !p.CanWrite) return false;
+
+            try
             {
-                var converted = Convert.ChangeType(value, p.PropertyType);
+                var raw = node.ToString().Trim().Trim('"');
+                object converted;
+                if (p.PropertyType == typeof(bool))
+                    converted = bool.TryParse(raw, out var b)
+                        ? b
+                        : Convert.ToBoolean(double.TryParse(raw, out var bn) && bn != 0);
+                else if (p.PropertyType == typeof(int))
+                    converted = int.TryParse(raw, out var i) ? i : Convert.ToInt32(double.Parse(raw));
+                else if (p.PropertyType == typeof(double))
+                    converted = double.Parse(raw);
+                else if (p.PropertyType == typeof(float))
+                    converted = float.Parse(raw);
+                else if (p.PropertyType == typeof(string))
+                    converted = raw;
+                else if (p.PropertyType.IsEnum)
+                    converted = Enum.ToObject(p.PropertyType, int.Parse(raw));
+                else
+                    converted = Convert.ChangeType(raw, p.PropertyType);
+
                 p.SetValue(settingsObj, converted);
-                updatedList.Add($"{propName} = {value}");
+                updatedList.Add($"{propName} = {converted}");
+                return true;
             }
-        }
-
-        if ((args.TryGetPropertyValue("timeOffsetSeconds", out var toNode) ||
-             args.TryGetPropertyValue("timeOffset", out toNode) ||
-             args.TryGetPropertyValue("offset", out toNode)) && toNode != null)
-        {
-            if (double.TryParse(toNode.ToString(), out var parsedSeconds))
+            catch
             {
-                TrySetProp("TimeOffsetSeconds", parsedSeconds);
+                return false;
             }
         }
 
-        if (args.TryGetPropertyValue("isNotificationEnabled", out var notifNode) && notifNode != null)
+        // 1) 按白名单匹配具名参数（支持 camelCase / PascalCase 两种写法）
+        foreach (var propName in AppSettingPropertyNames)
         {
-            TrySetProp("IsNotificationEnabled", notifNode.GetValue<bool>());
+            var camel = char.ToLowerInvariant(propName[0]) + propName[1..];
+            if (args.TryGetPropertyValue(camel, out var node) || args.TryGetPropertyValue(propName, out node))
+            {
+                TrySetProp(propName, node);
+            }
         }
-        if (args.TryGetPropertyValue("theme", out var themeNode) && themeNode != null)
+
+        // 2) 常见别名
+        if (args.TryGetPropertyValue("timeOffset", out var toAlias) || args.TryGetPropertyValue("offset", out toAlias))
         {
-            int t = themeNode.GetValue<int>();
-            TrySetProp("Theme", t);
+            TrySetProp("TimeOffsetSeconds", toAlias);
+        }
+
+        // 3) 主题切换需要通知主题服务刷新，仅改属性不会立即重绘
+        if (updatedList.Any(s => s.StartsWith("Theme = ")))
+        {
             try
             {
                 var themeServiceType = AppDomain.CurrentDomain.GetAssemblies()
@@ -701,43 +774,22 @@ public class ToolExecutor
                 {
                     var ts = IAppHost.Host?.Services.GetService(themeServiceType);
                     var setMethod = themeServiceType.GetMethod("SetTheme");
-                    setMethod?.Invoke(ts, new object?[] { t, null });
+                    setMethod?.Invoke(ts, new object?[] { type.GetProperty("Theme")?.GetValue(settingsObj), null });
                 }
             }
             catch { }
         }
-        if (args.TryGetPropertyValue("opacity", out var opNode) && opNode != null)
-        {
-            TrySetProp("Opacity", opNode.GetValue<double>());
-        }
-        if (args.TryGetPropertyValue("scale", out var scNode) && scNode != null)
-        {
-            TrySetProp("Scale", scNode.GetValue<double>());
-        }
-        if (args.TryGetPropertyValue("hideOnClass", out var hcNode) && hcNode != null)
-        {
-            TrySetProp("HideOnClass", hcNode.GetValue<bool>());
-        }
-        if (args.TryGetPropertyValue("hideOnFullscreen", out var hfNode) && hfNode != null)
-        {
-            TrySetProp("HideOnFullscreen", hfNode.GetValue<bool>());
-        }
-        if (args.TryGetPropertyValue("isClassPrepareNotificationEnabled", out var cpNode) && cpNode != null)
-        {
-            TrySetProp("IsClassPrepareNotificationEnabled", cpNode.GetValue<bool>());
-        }
-        if (args.TryGetPropertyValue("isClassOffNotificationEnabled", out var coNode) && coNode != null)
-        {
-            TrySetProp("IsClassOffNotificationEnabled", coNode.GetValue<bool>());
-        }
 
+        // 4) 任意键值对兜底（仍受白名单约束，防止误改集合类设置）
         if (args.TryGetPropertyValue("customSettings", out var customNode) && customNode is JsonObject customObj)
         {
             foreach (var kv in customObj)
             {
-                if (kv.Value != null)
+                var matched = AppSettingPropertyNames.FirstOrDefault(
+                    n => n.Equals(kv.Key, StringComparison.OrdinalIgnoreCase));
+                if (matched != null)
                 {
-                    TrySetProp(kv.Key, kv.Value.ToString());
+                    TrySetProp(matched, kv.Value);
                 }
             }
         }
@@ -787,8 +839,339 @@ public class ToolExecutor
         }
     }
 
-    private ToolExecutionResult ExecuteNavigateAppPage(string toolId, JsonObject args)
+    private ToolExecutionResult ExecuteGetPluginSettings(string toolId)
     {
+        if (_pluginSettings == null)
+        {
+            return new ToolExecutionResult
+            {
+                ToolCallId = toolId,
+                Name = "get_plugin_settings",
+                Success = false,
+                Result = "插件设置未就绪"
+            };
+        }
+
+        _pluginSettings.EnsureProvidersInitialized();
+
+        var providers = new JsonArray();
+        foreach (var p in _pluginSettings.Providers)
+        {
+            providers.Add(new JsonObject
+            {
+                ["id"] = p.Id,
+                ["name"] = p.Name,
+                ["baseUrl"] = p.BaseUrl,
+                ["hasApiKey"] = !string.IsNullOrWhiteSpace(p.ApiKey),
+                ["models"] = new JsonArray(p.Models.Select(m => (JsonNode)new JsonObject
+                {
+                    ["name"] = m.Name,
+                    ["isEnabled"] = m.IsEnabled
+                }).ToArray())
+            });
+        }
+
+        var result = new JsonObject
+        {
+            ["providers"] = providers,
+            ["activeProviderId"] = _pluginSettings.ActiveProviderId,
+            ["activeModelName"] = _pluginSettings.ActiveModelName,
+            ["isMemoryEnabled"] = _pluginSettings.IsMemoryEnabled,
+            ["isCommandExecutionEnabled"] = _pluginSettings.IsCommandExecutionEnabled,
+            ["customPrompt"] = _pluginSettings.CustomPrompt,
+            ["customMemory"] = _pluginSettings.CustomMemory,
+            ["hasPassword"] = !string.IsNullOrEmpty(_pluginSettings.PasswordHash),
+            ["isTotpEnabled"] = !string.IsNullOrWhiteSpace(_pluginSettings.TotpSecret),
+            ["isTotpPending"] = string.IsNullOrWhiteSpace(_pluginSettings.TotpSecret)
+                                 && !string.IsNullOrWhiteSpace(_pluginSettings.PendingTotpSecret)
+        };
+
+        return new ToolExecutionResult
+        {
+            ToolCallId = toolId,
+            Name = "get_plugin_settings",
+            Success = true,
+            Result = result.ToJsonString()
+        };
+    }
+
+    private ToolExecutionResult ExecuteUpdatePluginSettings(string toolId, JsonObject args)
+    {
+        if (_pluginSettings == null)
+        {
+            return new ToolExecutionResult
+            {
+                ToolCallId = toolId,
+                Name = "update_plugin_settings",
+                Success = false,
+                Result = "插件设置未就绪"
+            };
+        }
+
+        _pluginSettings.EnsureProvidersInitialized();
+        var changes = new List<string>();
+        var action = args["action"]?.ToString().Trim().ToLowerInvariant() ?? "";
+
+        // ---------- 供应商增删改 ----------
+        switch (action)
+        {
+            case "add_provider":
+            {
+                var name = args["providerName"]?.ToString().Trim() ?? "";
+                var baseUrl = args["baseUrl"]?.ToString().Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(baseUrl))
+                {
+                    return new ToolExecutionResult
+                    {
+                        ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                        Result = "add_provider 需要 providerName 与 baseUrl"
+                    };
+                }
+
+                if (_pluginSettings.Providers.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return new ToolExecutionResult
+                    {
+                        ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                        Result = $"供应商「{name}」已存在，请改用 set_provider 修改"
+                    };
+                }
+
+                var provider = new AiProviderConfig
+                {
+                    Name = name,
+                    BaseUrl = baseUrl,
+                    ApiKey = args["apiKey"]?.ToString().Trim() ?? "",
+                    Models = new List<AiModelItem>()
+                };
+                if (args["models"] is JsonArray modelArr)
+                {
+                    foreach (var m in modelArr)
+                    {
+                        var mn = m?.ToString().Trim() ?? "";
+                        if (!string.IsNullOrWhiteSpace(mn)) provider.Models.Add(new AiModelItem(mn, true));
+                    }
+                }
+
+                _pluginSettings.Providers.Add(provider);
+                if (string.IsNullOrWhiteSpace(_pluginSettings.ActiveProviderId))
+                {
+                    _pluginSettings.ActiveProviderId = provider.Id;
+                }
+                changes.Add($"已新增供应商「{name}」（{baseUrl}），模型 {provider.Models.Count} 个");
+                break;
+            }
+
+            case "set_provider":
+            {
+                var target = ResolveProvider(args["providerName"]?.ToString().Trim() ?? "");
+                if (target == null)
+                {
+                    return new ToolExecutionResult
+                    {
+                        ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                        Result = "未找到指定供应商，可先用 get_plugin_settings 查看现有供应商"
+                    };
+                }
+
+                var oldName = target.Name;
+                if (args["newName"] != null) target.Name = args["newName"]!.ToString().Trim();
+                if (args["baseUrl"] != null) target.BaseUrl = args["baseUrl"]!.ToString().Trim();
+                if (args["apiKey"] != null) target.ApiKey = args["apiKey"]!.ToString().Trim();
+                changes.Add($"已更新供应商「{oldName}」");
+                break;
+            }
+
+            case "delete_provider":
+            {
+                var target = ResolveProvider(args["providerName"]?.ToString().Trim() ?? "");
+                if (target == null)
+                {
+                    return new ToolExecutionResult
+                    {
+                        ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                        Result = "未找到指定供应商"
+                    };
+                }
+                if (_pluginSettings.Providers.Count <= 1)
+                {
+                    return new ToolExecutionResult
+                    {
+                        ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                        Result = "至少需保留一个供应商，无法删除"
+                    };
+                }
+
+                _pluginSettings.Providers.Remove(target);
+                if (_pluginSettings.ActiveProviderId == target.Id)
+                {
+                    _pluginSettings.ActiveProviderId = _pluginSettings.Providers.FirstOrDefault()?.Id ?? "";
+                }
+                changes.Add($"已删除供应商「{target.Name}」");
+                break;
+            }
+
+            case "add_model":
+            case "remove_model":
+            case "enable_model":
+            case "disable_model":
+            {
+                var target = ResolveProvider(args["providerName"]?.ToString().Trim() ?? "");
+                if (target == null)
+                {
+                    return new ToolExecutionResult
+                    {
+                        ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                        Result = "未找到指定供应商"
+                    };
+                }
+
+                var modelName = args["modelName"]?.ToString().Trim() ?? "";
+                if (string.IsNullOrWhiteSpace(modelName))
+                {
+                    return new ToolExecutionResult
+                    {
+                        ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                        Result = "缺少 modelName"
+                    };
+                }
+
+                var existing = target.Models.FirstOrDefault(m => m.Name == modelName);
+                if (action == "add_model")
+                {
+                    if (existing == null)
+                    {
+                        target.Models.Add(new AiModelItem(modelName, true));
+                        changes.Add($"已为「{target.Name}」添加模型 {modelName}（已启用）");
+                    }
+                    else
+                    {
+                        existing.IsEnabled = true;
+                        changes.Add($"模型 {modelName} 已存在，已置为启用");
+                    }
+                }
+                else if (action == "remove_model")
+                {
+                    if (existing == null)
+                    {
+                        return new ToolExecutionResult
+                        {
+                            ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                            Result = $"供应商「{target.Name}」下没有模型 {modelName}"
+                        };
+                    }
+                    target.Models.Remove(existing);
+                    changes.Add($"已从「{target.Name}」移除模型 {modelName}");
+                }
+                else
+                {
+                    if (existing == null)
+                    {
+                        return new ToolExecutionResult
+                        {
+                            ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                            Result = $"供应商「{target.Name}」下没有模型 {modelName}"
+                        };
+                    }
+                    existing.IsEnabled = action == "enable_model";
+                    changes.Add($"模型 {modelName} 已{(existing.IsEnabled ? "启用" : "停用")}");
+                }
+                break;
+            }
+
+            case "set_active_model":
+            {
+                var target = ResolveProvider(args["providerName"]?.ToString().Trim() ?? "");
+                var modelName = args["modelName"]?.ToString().Trim() ?? "";
+                if (target == null || string.IsNullOrWhiteSpace(modelName))
+                {
+                    return new ToolExecutionResult
+                    {
+                        ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                        Result = "set_active_model 需要 providerName 与 modelName"
+                    };
+                }
+
+                var model = target.Models.FirstOrDefault(m => m.Name == modelName);
+                if (model == null)
+                {
+                    target.Models.Add(new AiModelItem(modelName, true));
+                }
+                else
+                {
+                    model.IsEnabled = true;
+                }
+
+                _pluginSettings.SelectActiveModel(target.Id, modelName);
+                changes.Add($"当前模型已切换为 [{target.Name}] {modelName}");
+                break;
+            }
+
+            case "":
+                break; // 纯字段更新，无需 action
+
+            default:
+                return new ToolExecutionResult
+                {
+                    ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                    Result = $"未知操作类型: {action}"
+                };
+        }
+
+        // ---------- 纯字段更新 ----------
+        if (args["isMemoryEnabled"] is JsonNode memNode)
+        {
+            _pluginSettings.IsMemoryEnabled = memNode.GetValue<bool>();
+            changes.Add($"长期记忆已{(_pluginSettings.IsMemoryEnabled ? "启用" : "停用")}");
+        }
+        if (args["isCommandExecutionEnabled"] is JsonNode cmdNode)
+        {
+            var enabled = cmdNode.GetValue<bool>();
+            _pluginSettings.IsCommandExecutionEnabled = enabled;
+            changes.Add($"命令行执行权限已{(enabled ? "开启" : "关闭")}");
+        }
+        if (args["customPrompt"] is JsonNode promptNode)
+        {
+            _pluginSettings.CustomPrompt = promptNode.ToString();
+            changes.Add("自定义系统提示词已更新");
+        }
+        if (args["customMemory"] is JsonNode memoryNode)
+        {
+            _pluginSettings.CustomMemory = memoryNode.ToString();
+            changes.Add("长期记忆内容已更新");
+        }
+
+        if (changes.Count == 0)
+        {
+            return new ToolExecutionResult
+            {
+                ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
+                Result = "未提供任何有效的插件设置修改项"
+            };
+        }
+
+        try { _onSavePluginSettings?.Invoke(); }
+        catch { }
+
+        return new ToolExecutionResult
+        {
+            ToolCallId = toolId,
+            Name = "update_plugin_settings",
+            Success = true,
+            Result = "插件设置已更新并保存：\n• " + string.Join("\n• ", changes)
+        };
+    }
+
+    private AiProviderConfig? ResolveProvider(string nameOrId)
+    {
+        if (_pluginSettings == null || string.IsNullOrWhiteSpace(nameOrId)) return null;
+
+        return _pluginSettings.Providers.FirstOrDefault(p => p.Id == nameOrId)
+               ?? _pluginSettings.Providers.FirstOrDefault(p => p.Name.Equals(nameOrId, StringComparison.OrdinalIgnoreCase))
+               ?? _pluginSettings.Providers.FirstOrDefault(p => p.Name.Contains(nameOrId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private ToolExecutionResult ExecuteNavigateAppPage(string toolId, JsonObject args)    {
         var uriStr = args["pageUri"]?.GetValue<string>()?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(uriStr))
         {
