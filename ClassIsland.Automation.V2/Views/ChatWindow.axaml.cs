@@ -110,17 +110,10 @@ public partial class ChatWindow : Window
 
     private PluginSettings LoadPluginSettings()
     {
-        var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
-        var settingsPath = Path.Combine(configDir, "settings.json");
-        if (File.Exists(settingsPath))
-        {
-            try
-            {
-                return JsonSerializer.Deserialize<PluginSettings>(File.ReadAllText(settingsPath)) ?? new PluginSettings();
-            }
-            catch { }
-        }
-        return new PluginSettings();
+        // 统一走 SettingsManager，保证对话窗口与设置页操作的是同一份配置对象。
+        var settings = SettingsManager.Current;
+        settings.EnsureProvidersInitialized();
+        return settings;
     }
 
     private void SaveSettingsToFile(PluginSettings settings, string path)
@@ -255,9 +248,10 @@ public partial class ChatWindow : Window
             return;
         }
 
-        var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
-        var settingsPath = Path.Combine(configDir, "settings.json");
-        var settings = SettingsManager.Load(settingsPath);
+        // 使用 SettingsManager 的共享实例，而不是每次都从磁盘重新反序列化。
+        // 重新 Load 会替换静态实例，导致设置页正在编辑的对象与对话窗口持有的对象
+        // 变成两份，设置页的修改会在下次发送时被静默丢弃。
+        var settings = SettingsManager.Current;
         if (ModelSelectComboBox?.SelectedItem is ActiveModelOption opt)
         {
             settings.SelectActiveModel(opt.ProviderId, opt.ModelName);

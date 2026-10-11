@@ -160,8 +160,21 @@ public class AiClientService
             }
 
             using var doc = JsonDocument.Parse(rawResponse);
-            var choice = doc.RootElement.GetProperty("choices")[0];
-            var message = choice.GetProperty("message");
+
+            if (!doc.RootElement.TryGetProperty("choices", out var choicesElem) ||
+                choicesElem.ValueKind != JsonValueKind.Array ||
+                choicesElem.GetArrayLength() == 0)
+            {
+                throw new HttpRequestException(
+                    $"AI 接口返回内容中缺少 choices 字段，无法解析回复。原始响应：{Truncate(rawResponse, 400)}");
+            }
+
+            var choice = choicesElem[0];
+            if (!choice.TryGetProperty("message", out var message))
+            {
+                throw new HttpRequestException(
+                    $"AI 接口返回的 choices 中缺少 message 字段。原始响应：{Truncate(rawResponse, 400)}");
+            }
 
             var textContent = message.TryGetProperty("content", out var cElem) && cElem.ValueKind == JsonValueKind.String
                 ? cElem.GetString() ?? ""
@@ -182,10 +195,29 @@ public class AiClientService
 
                 foreach (var tc in toolCallsElem.EnumerateArray())
                 {
-                    var id = tc.GetProperty("id").GetString() ?? Guid.NewGuid().ToString();
-                    var fn = tc.GetProperty("function");
-                    var name = fn.GetProperty("name").GetString() ?? "";
-                    var argsStr = fn.GetProperty("arguments").GetString() ?? "{}";
+                    // 部分模型/网关会返回结构不完整的 tool_call，跳过而不是让整轮对话崩溃
+                    if (tc.ValueKind != JsonValueKind.Object ||
+                        !tc.TryGetProperty("function", out var fn) ||
+                        fn.ValueKind != JsonValueKind.Object ||
+                        !fn.TryGetProperty("name", out var nameElem))
+                    {
+                        continue;
+                    }
+
+                    var id = tc.TryGetProperty("id", out var idElem) && idElem.ValueKind == JsonValueKind.String
+                        ? idElem.GetString() ?? Guid.NewGuid().ToString()
+                        : Guid.NewGuid().ToString();
+                    var name = nameElem.GetString() ?? "";
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        continue;
+                    }
+
+                    var argsStr = fn.TryGetProperty("arguments", out var argsElem)
+                        ? (argsElem.ValueKind == JsonValueKind.String
+                            ? argsElem.GetString() ?? "{}"
+                            : argsElem.GetRawText())
+                        : "{}";
 
                     JsonObject argsObj;
                     try
@@ -290,7 +322,10 @@ public class AiClientService
 
             // 3. 模型没有发起工具调用，说明已得到最终回复
             var cleanedFinal = CleanDsmlTags(textContent);
-            agentResponse.ReplyText = cleanedFinal;
+
+            // 极少数模型会在正文里复述调用过程却没有任何可解析的调用，
+            // 若清洗后为空则保留原文，避免用户看到空气泡。
+            agentResponse.ReplyText = string.IsNullOrWhiteSpace(cleanedFinal) ? textContent.Trim() : cleanedFinal;
             conversationMessages.Add(new JsonObject
             {
                 ["role"] = "assistant",
@@ -299,7 +334,21 @@ public class AiClientService
             break;
         }
 
+        // 达到最大迭代次数仍未产出最终回复：必须明确告知用户，
+        // 否则界面会显示一条空白消息，看起来像插件卡死。
+        if (string.IsNullOrWhiteSpace(agentResponse.ReplyText))
+        {
+            agentResponse.ReplyText =
+                $"已连续调用工具 {maxIterations} 次仍未得出最终结论，本轮对话已停止。请补充更明确的信息后重试。";
+        }
+
         return agentResponse;
+    }
+
+    private static string Truncate(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        return text.Length <= maxLength ? text : text[..maxLength] + "…";
     }
 
     private static List<(string Name, JsonObject Arguments)> ParseDsmlToolCalls(string text)
