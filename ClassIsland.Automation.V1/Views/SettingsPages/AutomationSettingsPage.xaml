@@ -47,73 +47,23 @@
                     <!-- 选项卡 1：模型服务 -->
                     <TabItem Header="模型服务">
                         <StackPanel Margin="0,12,0,0">
-                            <!-- 供应商管理卡片 -->
+                            <!-- 顶部操作栏 -->
                             <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-                                <StackPanel>
-                                    <Grid Margin="0,0,0,12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="选择或管理供应商" FontWeight="SemiBold"/>
-                                            <TextBlock Text="支持配置多个大模型提供商（别名、地址与私钥）并在对话中快速切换" FontSize="11" Foreground="Gray"/>
-                                        </StackPanel>
-                                        <Button Name="AddProviderButton" Grid.Column="1" Margin="8,0,0,0" Content="+ 添加供应商" Padding="12,4"/>
-                                        <Button Name="DeleteProviderButton" Grid.Column="2" Margin="8,0,0,0" Content="删除此供应商" Padding="12,4"/>
-                                    </Grid>
-
-                                    <!-- 供应商下拉选择 -->
-                                    <ComboBox Name="ProviderComboBox" Margin="0,0,0,12"/>
-
-                                    <!-- 供应商别名 -->
-                                    <TextBlock Text="供应商别名 (Alias)" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                    <TextBox Name="ProviderNameTextBox" Margin="0,0,0,12"/>
-
-                                    <!-- API 地址 -->
-                                    <TextBlock Text="API 地址 (Base URL)" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                    <TextBox Name="BaseUrlTextBox" Margin="0,0,0,12"/>
-
-                                    <!-- API 密钥 -->
-                                    <TextBlock Text="API 密钥 (API Key)" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                                    <PasswordBox Name="ApiKeyPasswordBox" Margin="0,0,0,12"/>
-                                </StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="AI 模型供应商列表" FontSize="16" FontWeight="Bold"/>
+                                        <TextBlock Text="管理大模型提供商（别名、地址与私钥），并在列表中勾选启用的模型" FontSize="11" Foreground="Gray" Margin="0,2,0,0"/>
+                                    </StackPanel>
+                                    <Button Name="AddProviderButton" Grid.Column="1" Content="+ 添加供应商" Padding="14,6"/>
+                                </Grid>
                             </Border>
 
-                            <!-- 模型列表与勾选卡片 -->
-                            <Border BorderBrush="#DDD" BorderThickness="1" CornerRadius="8" Padding="16">
-                                <StackPanel>
-                                    <Grid Margin="0,0,0,12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="模型列表 (勾选启用的模型)" FontWeight="SemiBold"/>
-                                            <TextBlock Text="勾选后的模型将在对话窗口顶部下拉菜单中提供选择" FontSize="11" Foreground="Gray"/>
-                                        </StackPanel>
-                                        <Button Name="FetchModelsButton" Grid.Column="1" Content="自动获取模型列表" Padding="10,4"/>
-                                    </Grid>
-
-                                    <!-- 手动添加模型 -->
-                                    <Grid Margin="0,0,0,12">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBox Name="NewModelTextBox"/>
-                                        <Button Name="AddModelButton" Grid.Column="1" Margin="8,0,0,0" Content="添加模型" Padding="12,4"/>
-                                    </Grid>
-
-                                    <!-- 模型列表展示 (带复选框勾选与删除) -->
-                                    <Border Background="#F9F9F9" BorderBrush="#EEE" BorderThickness="1" CornerRadius="6" Padding="8" MaxHeight="220">
-                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                            <StackPanel Name="ModelsContainer"/>
-                                        </ScrollViewer>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
+                            <!-- 供应商卡片列表容器 -->
+                            <StackPanel Name="ProvidersListContainer"/>
                         </StackPanel>
                     </TabItem>
 
@@ -250,5 +200,105 @@
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
+
+        <!-- 供应商 添加/编辑 模态弹窗遮罩层 -->
+        <Grid Name="ProviderDialogOverlay" Visibility="Collapsed" Background="#80000000">
+            <Border Background="White" BorderBrush="#DDD" BorderThickness="1"
+                    CornerRadius="12" Padding="24"
+                    MaxWidth="560" MaxHeight="620"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- 弹窗标题与关闭 -->
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Name="DialogTitleTextBlock" Text="添加供应商" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <Button Name="DialogCloseButton" Grid.Column="1" Content="✕" Padding="8,4" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <!-- 弹窗表单滚动内容 -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <!-- 预置快捷填入 -->
+                            <StackPanel Margin="0,0,0,12">
+                                <TextBlock Text="快速填入预置模板：" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                                <WrapPanel Name="PresetButtonsWrapPanel"/>
+                            </StackPanel>
+
+                            <!-- 供应商别名 -->
+                            <TextBlock Text="供应商别名 (Alias) *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBox Name="DialogNameTextBox" Margin="0,0,0,12"/>
+
+                            <!-- API 地址 -->
+                            <TextBlock Text="API 地址 (Base URL) *" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBox Name="DialogBaseUrlTextBox" Margin="0,0,0,12"/>
+
+                            <!-- API 密钥 -->
+                            <TextBlock Text="API 密钥 (API Key)" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <PasswordBox Name="DialogApiKeyPasswordBox" Margin="0,0,0,12"/>
+
+                            <!-- 模型管理 -->
+                            <Border Background="#F9F9F9" BorderBrush="#EEE" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="模型列表 (勾选启用的模型)" FontWeight="SemiBold"/>
+                                            <TextBlock Text="启用的模型可在对话窗口顶部下拉选择" FontSize="11" Foreground="Gray"/>
+                                        </StackPanel>
+                                        <Button Name="DialogFetchModelsButton" Grid.Column="1" Content="自动获取模型列表" Padding="10,4"/>
+                                    </Grid>
+
+                                    <!-- 手动添加模型 -->
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Name="DialogNewModelTextBox"/>
+                                        <Button Name="DialogAddModelButton" Grid.Column="1" Margin="8,0,0,0" Content="添加模型" Padding="12,4"/>
+                                    </Grid>
+
+                                    <!-- 弹窗中的模型列表展示 -->
+                                    <Border Background="White" BorderBrush="#EEE" BorderThickness="1" CornerRadius="6" Padding="6" MaxHeight="160">
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <StackPanel Name="DialogModelsContainer"/>
+                                        </ScrollViewer>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 底部保存/取消按钮 -->
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                                <Button Name="DialogCancelButton" Content="取消" Padding="16,6" Margin="0,0,10,0"/>
+                                <Button Name="DialogSaveButton" Content="保存" Padding="20,6"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- 浮动 Toast 轻提示 -->
+        <Border Name="ToastBorder" Visibility="Collapsed"
+                HorizontalAlignment="Center" VerticalAlignment="Top"
+                Margin="0,20,0,0" CornerRadius="8"
+                Background="#242424" BorderBrush="#0078D4" BorderThickness="1"
+                Padding="18,10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Name="ToastIconTextBlock" Text="✓" Foreground="#4CAF50" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock Name="ToastMessageTextBlock" Foreground="White" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </ci:SettingsPageBase>
