@@ -99,6 +99,16 @@ public class PluginSettings
     // 常用提示词/自定义系统提示词
     public string CustomPrompt { get; set; } = "";
 
+    // 单轮对话中允许的最大工具调用轮数
+    public int MaxToolIterations { get; set; } = 8;
+
+    /// <summary>
+    /// 实际生效的工具调用轮数上限。夹在 1–50 之间：
+    /// 过大意味着一次提问可能产生几十次 API 调用与费用，过小则复杂任务做不完。
+    /// </summary>
+    [JsonIgnore]
+    public int EffectiveMaxToolIterations => Math.Clamp(MaxToolIterations, 1, 50);
+
     // 长期记忆系统
     public string CustomMemory { get; set; } = "";
     public bool IsMemoryEnabled { get; set; } = true;

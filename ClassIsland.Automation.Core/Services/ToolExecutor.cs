@@ -1135,6 +1135,19 @@ public class ToolExecutor
             _pluginSettings.CustomPrompt = promptNode.ToString();
             changes.Add("自定义系统提示词已更新");
         }
+        if (args["maxToolIterations"] is JsonNode iterNode)
+        {
+            var raw = iterNode.ToString().Trim().Trim('"');
+            if (int.TryParse(raw, out var parsedIter))
+            {
+                _pluginSettings.MaxToolIterations = Math.Clamp(parsedIter, 1, 50);
+                changes.Add($"工具调用轮数上限已设为 {_pluginSettings.MaxToolIterations}");
+            }
+            else
+            {
+                changes.Add("工具调用轮数上限未修改（需要 1–50 的整数）");
+            }
+        }
         if (args["customMemory"] is JsonNode memoryNode)
         {
             _pluginSettings.CustomMemory = memoryNode.ToString();

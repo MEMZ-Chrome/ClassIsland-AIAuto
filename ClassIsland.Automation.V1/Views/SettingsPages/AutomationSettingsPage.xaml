@@ -73,6 +73,21 @@
                                        TextWrapping="Wrap" Margin="28,4,0,16"
                                        Foreground="{DynamicResource MaterialDesignValidationErrorBrush}"/>
 
+                            <!-- 工具调用轮数上限 -->
+                            <TextBlock Text="工具调用轮数上限" FontWeight="SemiBold" Margin="0,0,0,6"/>
+                            <Grid Margin="0,0,0,16">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Name="MaxToolIterationsTextBox" Width="120" HorizontalAlignment="Left"
+                                         VerticalContentAlignment="Center" Height="30"/>
+                                <TextBlock Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center"
+                                           FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource MaterialDesignBodyLight}"
+                                           Text="单次提问内 AI 最多连续调用工具的轮数，可填 1–50，超出后停止。数值越大越能完成复杂任务，API 调用与费用也越多。"/>
+                            </Grid>
+
                             <!-- 自定义系统提示词 -->
                             <TextBlock Text="自定义系统提示词" FontWeight="SemiBold" Margin="0,0,0,6"/>
                             <TextBox Name="CustomPromptTextBox" AcceptsReturn="True" Height="88" TextWrapping="Wrap"

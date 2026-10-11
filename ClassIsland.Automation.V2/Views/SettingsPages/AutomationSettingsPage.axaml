@@ -67,6 +67,21 @@
                                            Foreground="{DynamicResource SystemFillColorCautionBrush}"/>
                             </StackPanel>
 
+                            <!-- 工具调用轮数上限 -->
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="工具调用轮数上限" FontWeight="SemiBold"/>
+                                <Grid ColumnDefinitions="120, *">
+                                    <NumericUpDown Name="MaxToolIterationsNumeric"
+                                                   Minimum="1" Maximum="50" Increment="1"
+                                                   FormatString="0"
+                                                   HorizontalAlignment="Left" Width="120"/>
+                                    <TextBlock Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center"
+                                               FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               Text="单次提问内 AI 最多连续调用工具的轮数，超出后停止。数值越大越能完成复杂任务，API 调用与费用也越多。"/>
+                                </Grid>
+                            </StackPanel>
+
                             <!-- 自定义系统提示词 -->
                             <StackPanel Spacing="6">
                                 <TextBlock Text="自定义系统提示词" FontWeight="SemiBold"/>

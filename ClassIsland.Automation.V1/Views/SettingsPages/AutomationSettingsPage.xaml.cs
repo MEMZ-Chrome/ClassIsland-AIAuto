@@ -242,6 +242,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
             IsCommandExecutionEnabledCheckBox.Click += (_, _) => AutoSave();
         }
 
+        if (MaxToolIterationsTextBox != null)
+        {
+            MaxToolIterationsTextBox.Text = _settings.EffectiveMaxToolIterations.ToString();
+            MaxToolIterationsTextBox.LostFocus += (_, _) => AutoSave();
+        }
+
         if (CustomPromptTextBox != null)
         {
             CustomPromptTextBox.Text = _settings.CustomPrompt;
@@ -682,6 +688,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
     {
         _settings.IsMemoryEnabled = IsMemoryEnabledCheckBox?.IsChecked ?? true;
         _settings.IsCommandExecutionEnabled = IsCommandExecutionEnabledCheckBox?.IsChecked ?? false;
+
+        // 填了非法内容就退回默认值，不把 0 或负数带进对话循环。
+        _settings.MaxToolIterations = int.TryParse(MaxToolIterationsTextBox?.Text?.Trim(), out var parsedIterations)
+            ? Math.Clamp(parsedIterations, 1, 50)
+            : 8;
+
         _settings.CustomPrompt = CustomPromptTextBox?.Text?.Trim() ?? "";
         _settings.CustomMemory = CustomMemoryTextBox?.Text?.Trim() ?? "";
     }

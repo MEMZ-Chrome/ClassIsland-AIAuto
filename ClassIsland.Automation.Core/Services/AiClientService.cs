@@ -124,7 +124,7 @@ public class AiClientService
         var agentResponse = new AgentChatResponse();
 
         int iterations = 0;
-        const int maxIterations = 8;
+        var maxIterations = settings.EffectiveMaxToolIterations;
 
         while (iterations < maxIterations)
         {

@@ -377,6 +377,11 @@ public static class AiToolDefinitions
                             ["isMemoryEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否启用长期记忆系统" },
                             ["isCommandExecutionEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否允许 AI 执行命令行命令" },
                             ["customPrompt"] = new JsonObject { ["type"] = "string", ["description"] = "自定义系统提示词全文" },
+                            ["maxToolIterations"] = new JsonObject
+                            {
+                                ["type"] = "integer",
+                                ["description"] = "单次提问内允许的最大工具调用轮数（1–50），数值越大越能完成复杂多步任务，API 调用与费用也越多"
+                            },
                             ["customMemory"] = new JsonObject { ["type"] = "string", ["description"] = "长期记忆全文（会覆盖原有内容）" }
                         },
                         ["required"] = new JsonArray()
