@@ -39,16 +39,18 @@ public partial class ChatWindow : Window
         if (ClearImageButton != null) ClearImageButton.Click += OnClearImageClicked;
         if (SendButton != null) SendButton.Click += (s, e) => SendCurrentMessage();
 
-        // 绑定回车发送事件（Enter 发送，Shift+Enter 换行）
+        // 回车发送，Shift+Enter 换行。
+        // 通过隧道阶段 PreviewKeyDown 拦截，避免 TextBox 先插入换行。
+        // 中文输入法输入过程中 e.Key 会是 Key.ImeProcessed，此时放行给输入法上屏候选词。
         if (InputTextBox != null)
         {
             InputTextBox.PreviewKeyDown += (s, e) =>
             {
-                if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == 0)
-                {
-                    e.Handled = true;
-                    SendCurrentMessage();
-                }
+                if (e.Key != Key.Enter && e.Key != Key.Return) return;
+                if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) return;
+
+                e.Handled = true;
+                SendCurrentMessage();
             };
         }
 

@@ -40,17 +40,23 @@ public partial class ChatWindow : Window
         if (ClearImageButton != null) ClearImageButton.Click += OnClearImageClicked;
         if (SendButton != null) SendButton.Click += (s, e) => SendCurrentMessage();
 
-        // 绑定回车发送事件（Enter 发送，Shift+Enter 换行）
+        // 回车发送，Shift+Enter 换行。
+        // 使用 AddHandler 并开启 RoutingStrategies.Tunnel，保证在 TextBox 自身插入换行之前
+        // 就能拦截；同时兼容中文输入法：输入法候选框弹出时 e.Key 为 Key.ImeProcessed，
+        // 此时应放行给输入法（用 Enter 上屏候选词），不触发发送。
         if (InputTextBox != null)
         {
-            InputTextBox.KeyDown += (s, e) =>
-            {
-                if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+            InputTextBox.AddHandler(
+                KeyDownEvent,
+                (s, e) =>
                 {
+                    if (e.Key != Key.Enter) return;
+                    if (e.KeyModifiers.HasFlag(KeyModifiers.Shift)) return;
+
                     e.Handled = true;
                     SendCurrentMessage();
-                }
-            };
+                },
+                RoutingStrategies.Tunnel);
         }
 
         _settings = LoadPluginSettings();
