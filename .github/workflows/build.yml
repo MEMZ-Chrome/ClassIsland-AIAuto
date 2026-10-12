@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   build:
-    name: Build ClassIsland Plugins (1.x & 2.x)
+    name: Build ClassIsland 2.x Plugin
     runs-on: windows-latest
 
     steps:
@@ -31,39 +31,26 @@ jobs:
       run: dotnet restore ClassIsland.Automation.sln
 
     - name: Build Core
-      run: |
-        dotnet build ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj -c Release -f net8.0 --no-restore
-        dotnet build ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj -c Release -f net8.0-windows --no-restore
+      run: dotnet build ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj -c Release --no-restore
 
     - name: Build ClassIsland 2.x Plugin
       run: dotnet build ClassIsland.Automation.V2\ClassIsland.Automation.V2.csproj -c Release --no-restore
 
-    - name: Build ClassIsland 1.x Plugin
-      run: dotnet build ClassIsland.Automation.V1\ClassIsland.Automation.V1.csproj -c Release --no-restore
-
-    - name: Package 2.x Output
+    - name: Package Output
       run: |
-        mkdir dist\v2
-        Copy-Item -Path "ClassIsland.Automation.V2\bin\Release\net8.0\*" -Destination "dist\v2\" -Recurse -Force
-        Copy-Item -Path "README.md" -Destination "dist\v2\README.md" -Force
-        Compress-Archive -Path "dist\v2\*" -DestinationPath "dist\ClassIsland.Automation.V2.zip"
-        Compress-Archive -Path "dist\v2\*" -DestinationPath "dist\ClassIsland.Automation.V2.cipx"
-
-    - name: Package 1.x Output
-      run: |
-        mkdir dist\v1
-        Copy-Item -Path "ClassIsland.Automation.V1\bin\Release\net8.0-windows\*" -Destination "dist\v1\" -Recurse -Force
-        Copy-Item -Path "README.md" -Destination "dist\v1\README.md" -Force
-        Compress-Archive -Path "dist\v1\*" -DestinationPath "dist\ClassIsland.Automation.V1.zip"
-        Compress-Archive -Path "dist\v1\*" -DestinationPath "dist\ClassIsland.Automation.V1.cipx"
+        mkdir dist
+        Copy-Item -Path "ClassIsland.Automation.V2\bin\Release\net8.0\*" -Destination "dist\" -Recurse -Force
+        Copy-Item -Path "README.md" -Destination "dist\README.md" -Force
+        Compress-Archive -Path "dist\*" -DestinationPath "ClassIsland.Automation.V2.zip"
+        Compress-Archive -Path "dist\*" -DestinationPath "ClassIsland.Automation.V2.cipx"
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ClassIsland-Automation-Plugins
+        name: ClassIsland-Automation-V2
         path: |
-          dist\*.zip
-          dist\*.cipx
+          ClassIsland.Automation.V2.zip
+          ClassIsland.Automation.V2.cipx
 
     - name: Publish GitHub Release (Tag Triggered)
       if: startsWith(github.ref, 'refs/tags/')
@@ -71,19 +58,17 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         $tagName = $env:GITHUB_REF_NAME
-        $v1Md5 = (Get-FileHash dist\ClassIsland.Automation.V1.cipx -Algorithm MD5).Hash
-        $v2Md5 = (Get-FileHash dist\ClassIsland.Automation.V2.cipx -Algorithm MD5).Hash
+        $v2Md5 = (Get-FileHash ClassIsland.Automation.V2.cipx -Algorithm MD5).Hash
 
         $releaseNotes = @"
-        ClassIsland AI 自动化插件 $tagName
+        ClassIsland AI 自动化插件 (2.x) $tagName
 
-        ### 📦 插件包文件
-        - **ClassIsland 2.x (Avalonia)**: `ClassIsland.Automation.V2.cipx`
-        - **ClassIsland 1.x (WPF)**: `ClassIsland.Automation.V1.cipx`
+        ### 插件包文件
+        - **ClassIsland 2.x (Avalonia)**: ``ClassIsland.Automation.V2.cipx``
 
-        ### 🔐 校验信息 (ClassIsland 插件索引规范)
-        <!-- CLASSISLAND_PKG_MD5 {"ClassIsland.Automation.V1.cipx":"$v1Md5","ClassIsland.Automation.V2.cipx":"$v2Md5"} -->
+        ### 校验信息 (ClassIsland 插件索引规范)
+        <!-- CLASSISLAND_PKG_MD5 {"ClassIsland.Automation.V2.cipx":"$v2Md5"} -->
         "@
 
-        Set-Content -Path dist\release_notes.md -Value $releaseNotes -Encoding UTF8
-        gh release create $tagName dist\ClassIsland.Automation.V1.cipx dist\ClassIsland.Automation.V2.cipx dist\ClassIsland.Automation.V1.zip dist\ClassIsland.Automation.V2.zip --title "$tagName" --notes-file dist\release_notes.md
+        Set-Content -Path release_notes.md -Value $releaseNotes -Encoding UTF8
+        gh release create $tagName ClassIsland.Automation.V2.cipx ClassIsland.Automation.V2.zip --title "$tagName" --notes-file release_notes.md

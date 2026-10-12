@@ -4,13 +4,14 @@ using ClassIsland.Shared.Models.Profile;
 namespace ClassIsland.Automation.Core.Services;
 
 /// <summary>
-/// ClassIsland 1.x 与 2.x 的档案模型差异适配层。
+/// 档案模型访问的适配层。
 ///
-/// 两代差异（已对照双方源码确认）：
-///   字典键：1.x 为 <c>ObservableDictionary&lt;string, T&gt;</c>，2.x 为 <c>ObservableDictionary&lt;Guid, T&gt;</c>
-///   时间项：1.x 用 <c>StartSecond</c>/<c>EndSecond</c>（DateTime），2.x 用 <c>StartTime</c>/<c>EndTime</c>（TimeSpan）
+/// 本仓库只面向 ClassIsland 2.x，因此下面的 <c>#if CLASSISLAND_1X</c> 分支不会生效，
+/// 实际走的都是 2.x 那条路（字典键为 Guid，时间项为 TimeSpan）。
 ///
-/// 这里只做最小适配，不改变档案本身的语义。
+/// 保留这层的原因：ToolExecutor 有 20 多处调用点，直接内联成 2.x 具体类型
+/// 收益不大且容易改错。1.x 版本在独立仓库 ClassIsland-AIAuto-V1，那边定义
+/// CLASSISLAND_1X 后同一个文件会走 1.x 分支（string 键、StartSecond/EndSecond）。
 /// </summary>
 internal static class ProfileCompat
 {
