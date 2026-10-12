@@ -289,7 +289,7 @@ public static class AiToolDefinitions
                             ["customSettings"] = new JsonObject
                             {
                                 ["type"] = "object",
-                                ["description"] = "其他支持的设置项键值对（键名需在白名单内，如 showWeekDay、isMainWindowTopmost、isAutoStartupEnabled）"
+                                ["description"] = "其他支持的设置项键值对（键名需在白名单内，如 showDate、windowTopmostRecheckMode）"
                             },
                             ["timeOffset"] = new JsonObject
                             {
@@ -297,19 +297,14 @@ public static class AiToolDefinitions
                                 ["description"] = "timeOffsetSeconds 的别名"
                             },
                             ["showDate"] = new JsonObject { ["type"] = "boolean", ["description"] = "主界面是否显示日期" },
-                            ["showWeekDay"] = new JsonObject { ["type"] = "boolean", ["description"] = "主界面是否显示星期" },
-                            ["showSecond"] = new JsonObject { ["type"] = "boolean", ["description"] = "时钟是否显示秒" },
                             ["isMainWindowVisible"] = new JsonObject { ["type"] = "boolean", ["description"] = "主窗口是否显示" },
-                            ["isMainWindowTopmost"] = new JsonObject { ["type"] = "boolean", ["description"] = "主窗口是否置顶" },
-                            ["isMousePenetrationEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启鼠标穿透" },
                             ["hideOnMaxWindow"] = new JsonObject { ["type"] = "boolean", ["description"] = "窗口最大化时是否自动隐藏" },
                             ["isTimeAutoAdjustEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启网络时间自动校准" },
+                            ["timeAutoAdjustSeconds"] = new JsonObject { ["type"] = "number", ["description"] = "网络时间自动校准间隔（秒）" },
+                            ["isExactTimeEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启精确时间服务" },
                             ["isClassChangingNotificationEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启下课/换课提醒" },
-                            ["isWeatherNotificationEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启天气提醒" },
-                            ["isAfterClassNotificationEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启放学提醒" },
-                            ["isAutoStartupEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开机自启动" },
-                            ["isStartupUpdateCheckEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否在启动时检查更新" },
-                            ["isSleepModeEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启休眠模式（关闭全部提醒）" },
+                            ["isNotificationTopmostEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "提醒是否置顶显示" },
+                            ["isMouseClickingEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否允许鼠标点击交互" },
                             ["isDebugEnabled"] = new JsonObject { ["type"] = "boolean", ["description"] = "是否开启调试模式" },
                             ["selectedProfile"] = new JsonObject { ["type"] = "string", ["description"] = "当前启用的档案名称" }
                         },

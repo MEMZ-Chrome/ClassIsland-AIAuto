@@ -24,6 +24,7 @@ public partial class ChatWindow : Window
     private readonly ObservableCollection<ChatMessageItem> _displayMessages = new();
     private PluginSettings _settings = new();
     private bool _isUpdatingModelCombo = false;
+    private bool _isSending = false;
 
     public ChatWindow(IProfileService? profileService = null, IUriNavigationService? uriService = null)
     {
@@ -62,6 +63,31 @@ public partial class ChatWindow : Window
         _settings = LoadPluginSettings();
         InitModelSelector();
         InitConversation();
+
+        // 设置页或 AI 工具改了供应商/模型后，下拉框要跟着刷新，
+        // 否则会继续持有已被删除的 ActiveModelOption，发送时又把它写回配置。
+        SettingsManager.SettingsChanged += OnSettingsChangedExternally;
+        Closed += (_, _) => SettingsManager.SettingsChanged -= OnSettingsChangedExternally;
+    }
+
+    private void OnSettingsChangedExternally(PluginSettings updated)
+    {
+        if (_isUpdatingModelCombo) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_isUpdatingModelCombo) return;
+            var previous = (ModelSelectComboBox?.SelectedItem as ActiveModelOption)?.DisplayText;
+            InitModelSelector();
+
+            // 尽量恢复用户原先选中的模型
+            if (previous != null && ModelSelectComboBox != null)
+            {
+                var match = ModelSelectComboBox.ItemsSource?
+                    .OfType<ActiveModelOption>()
+                    .FirstOrDefault(o => o.DisplayText == previous);
+                if (match != null) ModelSelectComboBox.SelectedItem = match;
+            }
+        });
     }
 
     private void InitModelSelector()
@@ -216,8 +242,34 @@ public partial class ChatWindow : Window
         {
             var file = files[0];
             await using var stream = await file.OpenReadAsync();
+
+            // 上限 8 MB。图片会被 Base64 后随每次请求发送（体积再涨约 1/3），
+            // 不设限的话一张高分辨率图就可能撑爆请求体或直接 OOM。
+            const long maxBytes = 8 * 1024 * 1024;
+            if (stream.CanSeek && stream.Length > maxBytes)
+            {
+                _selectedImageBytes = null;
+                if (ImageStatusTextBlock != null)
+                {
+                    ImageStatusTextBlock.Text = $"图片过大（{stream.Length / 1024 / 1024} MB），请压缩到 8 MB 以内";
+                }
+                if (ClearImageButton != null) ClearImageButton.IsVisible = false;
+                ShowToast("图片过大，未加载", isError: true);
+                return;
+            }
+
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
+
+            if (ms.Length > maxBytes)
+            {
+                _selectedImageBytes = null;
+                if (ImageStatusTextBlock != null) ImageStatusTextBlock.Text = "图片过大，请压缩到 8 MB 以内";
+                if (ClearImageButton != null) ClearImageButton.IsVisible = false;
+                ShowToast("图片过大，未加载", isError: true);
+                return;
+            }
+
             _selectedImageBytes = ms.ToArray();
 
             var ext = Path.GetExtension(file.Name).ToLowerInvariant();
@@ -248,6 +300,25 @@ public partial class ChatWindow : Window
             return;
         }
 
+        // 防重入：Enter 处理器不受 SendButton.IsEnabled 约束，连按回车会并发发起多次请求，
+        // 同时读写 _conversationMessages / _displayMessages 与共享配置。
+        if (_isSending)
+        {
+            return;
+        }
+        _isSending = true;
+        try
+        {
+            await SendCurrentMessageCoreAsync(prompt);
+        }
+        finally
+        {
+            _isSending = false;
+        }
+    }
+
+    private async Task SendCurrentMessageCoreAsync(string prompt)
+    {
         // 使用 SettingsManager 的共享实例，而不是每次都从磁盘重新反序列化。
         // 重新 Load 会替换静态实例，导致设置页正在编辑的对象与对话窗口持有的对象
         // 变成两份，设置页的修改会在下次发送时被静默丢弃。
@@ -312,11 +383,14 @@ public partial class ChatWindow : Window
             });
         }
 
-        _conversationMessages.Add(new JsonObject
+        var userMessage = new JsonObject
         {
             ["role"] = "user",
             ["content"] = userMsgContent
-        });
+        };
+        _conversationMessages.Add(userMessage);
+        var userMessageIndex = _conversationMessages.Count - 1;
+        var hadImage = _selectedImageBytes != null && _selectedImageBytes.Length > 0;
 
         // 添加到对话气泡流
         _displayMessages.Add(new ChatMessageItem
@@ -350,7 +424,12 @@ public partial class ChatWindow : Window
                 {
                     _conversationMessages[0]["content"] = BuildSystemPrompt(settings);
                 }
-            });
+            })
+            {
+                // 聊天窗口不提供解锁入口，因此只有「未设置任何访问保护」时才视为已授权。
+                // 设置了密码/TOTP 的用户必须去设置页改高危项，AI 不能替他开。
+                IsAuthorizedSession = !SecurityService.IsActiveProtectionEnabled(settings)
+            };
             var response = await _aiClient.ExecuteAgentTurnAsync(
                 settings,
                 _conversationMessages,
@@ -376,6 +455,18 @@ public partial class ChatWindow : Window
         }
         finally
         {
+            // 请求已发出，现在把历史里的 base64 图片换成文字占位。
+            // 否则这张图会一直留在 _conversationMessages 中，之后每一次 ReAct 请求
+            // 以及之后所有轮次都会 DeepClone 并重新上传，持续放大流量与 token 费用。
+            if (hadImage && userMessageIndex >= 0 && userMessageIndex < _conversationMessages.Count)
+            {
+                _conversationMessages[userMessageIndex] = new JsonObject
+                {
+                    ["role"] = "user",
+                    ["content"] = $"{textContent}（用户上传了一张课表图片）"
+                };
+            }
+
             if (SendButton != null) SendButton.IsEnabled = true;
         }
     }

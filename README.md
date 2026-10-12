@@ -1,8 +1,9 @@
-# IslandAgent
+# IslandAgent (ClassIsland 2.x)
 
-ClassIsland 的 AI 插件。接入任意 OpenAI 兼容接口，用对话的方式改课表、调设置。
+ClassIsland **2.x**（Avalonia）专用的 AI 插件。接入任意 OpenAI 兼容接口，用对话的方式改课表、调设置。
 
-同时支持 ClassIsland 1.x（WPF）和 2.x（Avalonia）。
+> ClassIsland 1.x（WPF）请用另一个仓库：[ClassIsland-AIAuto-V1](https://github.com/MEMZ-Chrome/ClassIsland-AIAuto-V1)。
+> 两个仓库各自独立维护，代码不共用 —— 因为 1.x 和 2.x 的档案模型不一样（字典键一个是 string、一个是 Guid，时间项一个是 DateTime、一个是 TimeSpan），强行共用只会两边都编译不过。
 
 ## 能做什么
 
@@ -16,12 +17,11 @@ ClassIsland 的 AI 插件。接入任意 OpenAI 兼容接口，用对话的方�
 
 ## 安装
 
-在 [Releases](https://github.com/MEMZ-Chrome/ClassIsland-AIAuto/releases) 下载对应的包：
-
-- ClassIsland 2.x → `ClassIsland.Automation.V2.cipx`
-- ClassIsland 1.x → `ClassIsland.Automation.V1.cipx`
+在 [Releases](https://github.com/MEMZ-Chrome/ClassIsland-AIAuto/releases) 下载 `ClassIsland.Automation.V2.cipx`。
 
 `.cipx` 可以直接在 ClassIsland 里安装，或者解压到 `Plugins/` 目录。
+
+本插件面向 ClassIsland 2.x。1.x 版本在 [ClassIsland-AIAuto-V1](https://github.com/MEMZ-Chrome/ClassIsland-AIAuto-V1)。
 
 ## 配置
 
