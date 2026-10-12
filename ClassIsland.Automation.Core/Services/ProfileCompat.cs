@@ -112,8 +112,10 @@ internal static class ProfileCompat
     /// </summary>
     public static string FirstTimeLayoutId(Profile profile)
     {
+        // 键在 1.x 是 string、2.x 是 Guid，Convert.ToString 对两者都成立，
+        // 且不会因值类型不可空而在 ?. 上编译失败。
         var first = profile.TimeLayouts.Keys.FirstOrDefault();
-        return first?.ToString() ?? "";
+        return Convert.ToString(first) ?? "";
     }
 
     /// <summary>
@@ -174,8 +176,7 @@ internal static class ProfileCompat
     /// </summary>
     public static string GetOverlayClassPlanId(Profile profile)
     {
-        var id = profile.OverlayClassPlanId;
-        return id?.ToString() ?? "";
+        return Convert.ToString(profile.OverlayClassPlanId) ?? "";
     }
 
     /// <summary>

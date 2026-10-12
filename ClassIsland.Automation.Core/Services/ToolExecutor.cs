@@ -141,7 +141,7 @@ public class ToolExecutor
             ["timeLayouts"] = new JsonArray(p.TimeLayouts.Values.Select(t => (JsonNode)t.Name).ToArray()),
             ["classPlans"] = new JsonArray(p.ClassPlans.Values.Select(c => (JsonNode)c.Name).ToArray()),
             ["isOverlayEnabled"] = p.IsOverlayClassPlanEnabled,
-            ["activeOverlayId"] = p.OverlayClassPlanId?.ToString() ?? "无"
+            ["activeOverlayId"] = string.IsNullOrEmpty(ProfileCompat.GetOverlayClassPlanId(p)) ? "无" : ProfileCompat.GetOverlayClassPlanId(p)
         };
 
         return new ToolExecutionResult
@@ -379,14 +379,14 @@ public class ToolExecutor
         if (!string.IsNullOrWhiteSpace(timeLayoutName))
         {
             var match = profile.TimeLayouts.FirstOrDefault(kv => string.Equals(kv.Value.Name, timeLayoutName, StringComparison.OrdinalIgnoreCase));
-            if (match.Value != null) timeLayoutId = match.Key.ToString() ?? "";
+            if (match.Value != null) timeLayoutId = Convert.ToString(match.Key) ?? "";
         }
         if (string.IsNullOrEmpty(timeLayoutId) && profile.TimeLayouts.Count > 0)
         {
             timeLayoutId = ProfileCompat.FirstTimeLayoutId(profile);
         }
 
-        var subMap = profile.Subjects.ToDictionary(kv => kv.Value.Name, kv => kv.Key.ToString() ?? "", StringComparer.OrdinalIgnoreCase);
+        var subMap = profile.Subjects.ToDictionary(kv => kv.Value.Name, kv => Convert.ToString(kv.Key) ?? "", StringComparer.OrdinalIgnoreCase);
 
         var existingPlan = profile.ClassPlans.FirstOrDefault(kv => string.Equals(kv.Value.Name, planName, StringComparison.OrdinalIgnoreCase));
         ClassPlan plan;
@@ -544,7 +544,7 @@ public class ToolExecutor
         }
 
         string changeDescription = "";
-        var subMap = profile.Subjects.ToDictionary(kv => kv.Value.Name, kv => kv.Key.ToString() ?? "", StringComparer.OrdinalIgnoreCase);
+        var subMap = profile.Subjects.ToDictionary(kv => kv.Value.Name, kv => Convert.ToString(kv.Key) ?? "", StringComparer.OrdinalIgnoreCase);
 
         var targetIndices = new List<int>();
         if (args.TryGetPropertyValue("classIndices", out var cisNode) && cisNode is JsonArray cisArr)
