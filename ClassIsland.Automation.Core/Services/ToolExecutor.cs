@@ -10,23 +10,27 @@ namespace ClassIsland.Automation.Core.Services;
 public class ToolExecutor
 {
     /// <summary>
-    /// 鍙緵 AI 璇诲彇涓庝慨鏀圭殑 ClassIsland 瀹夸富璁剧疆椤圭櫧鍚嶅崟銆?    /// 浠呭寘鍚爣閲忕被鍨嬶紝閬垮厤璇敼闆嗗悎绫昏缃鑷村簲鐢ㄥ紓甯搞€?    /// </summary>
+    /// 可供 AI 读取与修改的 ClassIsland 宿主设置项白名单。
+    /// 仅包含标量类型，避免误改集合类设置导致应用异常。
+    /// </summary>
     private static readonly string[] AppSettingPropertyNames =
     [
-        // 鏃堕棿涓庤鏃?        "TimeOffsetSeconds", "IsTimeAutoAdjustEnabled", "TimeAutoAdjustInterval",
-        // 閫氱煡
+        // 时间与计时
+        "TimeOffsetSeconds", "IsTimeAutoAdjustEnabled", "TimeAutoAdjustInterval",
+        // 通知
         "IsNotificationEnabled", "IsClassPrepareNotificationEnabled",
         "IsClassOffNotificationEnabled", "IsClassChangingNotificationEnabled",
         "IsWeatherNotificationEnabled", "IsAfterClassNotificationEnabled",
-        // 澶栬
+        // 外观
         "Theme", "Opacity", "Scale", "ShowDate", "ShowWeekDay",
         "ShowSecond", "IsClockSecondsVisible", "IsMainWindowVisible",
-        // 绐楀彛琛屼负
+        // 窗口行为
         "HideOnClass", "HideOnFullscreen", "HideOnMaxWindow",
         "IsMainWindowTopmost", "IsMousePenetrationEnabled",
-        // 鍚姩涓庡叧闂?        "IsAutoStartupEnabled", "IsSentryEnabled", "IsDebugEnabled",
+        // 启动与关闭
+        "IsAutoStartupEnabled", "IsSentryEnabled", "IsDebugEnabled",
         "IsStartupUpdateCheckEnabled",
-        // 妗ｆ
+        // 档案
         "SelectedProfile", "IsSleepModeEnabled",
     ];
 
@@ -102,7 +106,7 @@ public class ToolExecutor
                         ToolCallId = toolCall.Id,
                         Name = toolCall.Name,
                         Success = false,
-                        Result = $"鏈煡鐨勫伐鍏峰悕绉? {toolCall.Name}"
+                        Result = $"未知的工具名称: {toolCall.Name}"
                     };
             }
         }
@@ -113,7 +117,7 @@ public class ToolExecutor
                 ToolCallId = toolCall.Id,
                 Name = toolCall.Name,
                 Success = false,
-                Result = $"鎵ц澶辫触: {ex.Message}"
+                Result = $"执行失败: {ex.Message}"
             };
         }
     }
@@ -122,7 +126,7 @@ public class ToolExecutor
     {
         if (_profileService?.Profile == null)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "get_profile_summary", Success = false, Result = "褰撳墠 Profile 鏈嶅姟鏈氨缁? };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "get_profile_summary", Success = false, Result = "当前 Profile 服务未就绪" };
         }
 
         var p = _profileService.Profile;
@@ -137,7 +141,7 @@ public class ToolExecutor
             ["timeLayouts"] = new JsonArray(p.TimeLayouts.Values.Select(t => (JsonNode)t.Name).ToArray()),
             ["classPlans"] = new JsonArray(p.ClassPlans.Values.Select(c => (JsonNode)c.Name).ToArray()),
             ["isOverlayEnabled"] = p.IsOverlayClassPlanEnabled,
-            ["activeOverlayId"] = p.OverlayClassPlanId?.ToString() ?? "鏃?
+            ["activeOverlayId"] = p.OverlayClassPlanId?.ToString() ?? "无"
         };
 
         return new ToolExecutionResult
@@ -153,13 +157,14 @@ public class ToolExecutor
     {
         if (_profileService?.Profile == null)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "get_schedule_details", Success = false, Result = "Profile 鏈嶅姟鏈氨缁? };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "get_schedule_details", Success = false, Result = "Profile 服务未就绪" };
         }
 
         var profile = _profileService.Profile;
         var planNameQuery = args["planName"]?.GetValue<string>()?.Trim();
         var targetDateQuery = args["targetDate"]?.GetValue<string>()?.Trim();
 
+        var subjects = profile.Subjects;
         var resultObj = new JsonObject();
         var plansArray = new JsonArray();
 
@@ -184,7 +189,7 @@ public class ToolExecutor
             };
 
             TimeLayout? layout = null;
-            if (ProfileCompat.TryGetTimeLayout(profile, ProfileCompat.GetTimeLayoutId(plan), out var tl) && tl != null)
+            if (profile.TimeLayouts.TryGetValue(plan.TimeLayoutId, out var tl))
             {
                 layout = tl;
                 planObj["timeLayoutName"] = tl.Name;
@@ -196,7 +201,7 @@ public class ToolExecutor
             for (int i = 0; i < plan.Classes.Count; i++)
             {
                 var c = plan.Classes[i];
-                var subName = ProfileCompat.TryGetSubject(profile, ProfileCompat.GetSubjectId(c), out var s) && s != null ? s.Name : "鏈缃鐩?;
+                var subName = ProfileCompat.TryGetSubject(profile, ProfileCompat.GetSubjectId(c), out var s) && s != null ? s.Name : "未设置科目";
                 var teacherName = ProfileCompat.TryGetSubject(profile, ProfileCompat.GetSubjectId(c), out var s2) && s2 != null ? s2.TeacherName : "";
                 var timeSlot = i < validLessons.Count
                     ? $"{ProfileCompat.GetStart(validLessons[i]):hh\\:mm} - {ProfileCompat.GetEnd(validLessons[i]):hh\\:mm}"
@@ -204,7 +209,7 @@ public class ToolExecutor
 
                 var itemObj = new JsonObject
                 {
-                    ["index"] = i + 1, // 1 琛ㄧず绗?1 鑺傝
+                    ["index"] = i + 1, // 1 表示第 1 节课
                     ["subject"] = subName,
                     ["teacher"] = teacherName,
                     ["time"] = timeSlot,
@@ -221,7 +226,7 @@ public class ToolExecutor
         var ordersArray = new JsonArray();
         foreach (var ord in profile.OrderedSchedules)
         {
-            var targetPlanName = profile.ClassPlans.TryGetValue(ord.Value.ClassPlanId, out var cp) ? cp.Name : "鏈煡璇捐〃";
+            var targetPlanName = profile.ClassPlans.TryGetValue(ord.Value.ClassPlanId, out var cp) ? cp.Name : "未知课表";
             ordersArray.Add(new JsonObject
             {
                 ["date"] = ord.Key.ToString("yyyy-MM-dd"),
@@ -243,13 +248,13 @@ public class ToolExecutor
     {
         if (_profileService?.Profile == null)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "upsert_subjects", Success = false, Result = "Profile 鏈嶅姟鏈氨缁? };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "upsert_subjects", Success = false, Result = "Profile 服务未就绪" };
         }
 
         var profile = _profileService.Profile;
         if (!args.TryGetPropertyValue("subjects", out var subsNode) || subsNode is not JsonArray subsArray)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "upsert_subjects", Success = false, Result = "缂哄皯 subjects 鍒楄〃鍙傛暟" };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "upsert_subjects", Success = false, Result = "缺少 subjects 列表参数" };
         }
 
         int addedCount = 0;
@@ -293,7 +298,7 @@ public class ToolExecutor
             ToolCallId = toolId,
             Name = "upsert_subjects",
             Success = true,
-            Result = $"鎴愬姛娣诲姞 {addedCount} 涓鐩紝鏇存柊 {updatedCount} 涓鐩€?
+            Result = $"成功添加 {addedCount} 个科目，更新 {updatedCount} 个科目。"
         };
     }
 
@@ -301,14 +306,14 @@ public class ToolExecutor
     {
         if (_profileService?.Profile == null)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "create_time_layout", Success = false, Result = "Profile 鏈嶅姟鏈氨缁? };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "create_time_layout", Success = false, Result = "Profile 服务未就绪" };
         }
 
         var profile = _profileService.Profile;
-        var layoutName = args["layoutName"]?.GetValue<string>()?.Trim() ?? "鏃堕棿琛?;
+        var layoutName = args["layoutName"]?.GetValue<string>()?.Trim() ?? "时间表";
         if (!args.TryGetPropertyValue("items", out var itemsNode) || itemsNode is not JsonArray itemsArray)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "create_time_layout", Success = false, Result = "缂哄皯 items 鑺傜偣鍒楄〃" };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "create_time_layout", Success = false, Result = "缺少 items 节点列表" };
         }
 
         var existingLayout = profile.TimeLayouts.FirstOrDefault(kv => string.Equals(kv.Value.Name, layoutName, StringComparison.OrdinalIgnoreCase));
@@ -350,7 +355,7 @@ public class ToolExecutor
             ToolCallId = toolId,
             Name = "create_time_layout",
             Success = true,
-            Result = $"鏃堕棿琛ㄣ€恵layoutName}銆戝凡鍒涘缓骞朵繚瀛橈紝鍖呭惈 {layout.Layouts.Count} 涓妭鐐广€?
+            Result = $"时间表【{layoutName}】已创建并保存，包含 {layout.Layouts.Count} 个节点。"
         };
     }
 
@@ -358,16 +363,16 @@ public class ToolExecutor
     {
         if (_profileService?.Profile == null)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "set_class_plan", Success = false, Result = "Profile 鏈嶅姟鏈氨缁? };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "set_class_plan", Success = false, Result = "Profile 服务未就绪" };
         }
 
         var profile = _profileService.Profile;
-        var planName = args["planName"]?.GetValue<string>()?.Trim() ?? "鏂拌琛?;
+        var planName = args["planName"]?.GetValue<string>()?.Trim() ?? "新课表";
         var timeLayoutName = args["timeLayoutName"]?.GetValue<string>()?.Trim() ?? "";
 
         if (!args.TryGetPropertyValue("classes", out var clsNode) || clsNode is not JsonArray clsArray)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "set_class_plan", Success = false, Result = "缂哄皯 classes 璇剧▼鍒楄〃" };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "set_class_plan", Success = false, Result = "缺少 classes 课程列表" };
         }
 
         var timeLayoutId = "";
@@ -438,7 +443,7 @@ public class ToolExecutor
             ToolCallId = toolId,
             Name = "set_class_plan",
             Success = true,
-            Result = $"璇捐〃銆恵planName}銆戝凡閰嶇疆瀹屾瘯锛屽叡瀹夋帓 {plan.Classes.Count} 鑺傝锛堝搴旓細{(detectedWeekDay >= 0 ? GetChineseWeekDay((DayOfWeek)detectedWeekDay) : "鏈寚瀹氬浐瀹氭槦鏈?)}锛夈€?
+            Result = $"课表【{planName}】已配置完毕，共安排 {plan.Classes.Count} 节课（对应：{(detectedWeekDay >= 0 ? GetChineseWeekDay((DayOfWeek)detectedWeekDay) : "未指定固定星期")}）。"
         };
     }
 
@@ -446,7 +451,7 @@ public class ToolExecutor
     {
         if (_profileService == null || _profileService.Profile == null)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "setup_temp_class_plan", Success = false, Result = "Profile 鏈嶅姟鏈氨缁? };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "setup_temp_class_plan", Success = false, Result = "Profile 服务未就绪" };
         }
 
         var profile = _profileService.Profile;
@@ -481,7 +486,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "setup_temp_class_plan",
                 Success = false,
-                Result = $"鏈兘鍖归厤鍒伴€傚悎鐨勫熀纭€璇捐〃銆恵planName}銆戙€傚綋鍓嶅凡鏈夎琛細{string.Join(", ", profile.ClassPlans.Values.Select(c => c.Name))}"
+                Result = $"未能匹配到适合的基础课表【{planName}】。当前已有课表：{string.Join(", ", profile.ClassPlans.Values.Select(c => c.Name))}"
             };
         }
 
@@ -516,7 +521,7 @@ public class ToolExecutor
                     var serialized = JsonSerializer.Serialize(sourcePlan);
                     var newPlan = JsonSerializer.Deserialize<ClassPlan>(serialized) ?? new ClassPlan();
                     newPlan.IsOverlay = true;
-                    newPlan.Name = sourcePlan.Name + "锛堜复鏃跺眰锛?;
+                    newPlan.Name = sourcePlan.Name + "（临时层）";
                     ProfileCompat.SetOverlaySourceId(newPlan, sourceKey);
                     newPlan.OverlaySetupTime = targetDate.Date;
                     tempId = Guid.NewGuid().ToString();
@@ -528,14 +533,14 @@ public class ToolExecutor
                 }
                 catch (Exception ex)
                 {
-                    return new ToolExecutionResult { ToolCallId = toolId, Name = "setup_temp_class_plan", Success = false, Result = $"澶嶅埗鍒涘缓涓存椂璇捐〃寮傚父: {ex.Message}" };
+                    return new ToolExecutionResult { ToolCallId = toolId, Name = "setup_temp_class_plan", Success = false, Result = $"复制创建临时课表异常: {ex.Message}" };
                 }
             }
         }
 
         if (tempPlan == null)
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "setup_temp_class_plan", Success = false, Result = "鍒涘缓鎴栬幏鍙栦复鏃惰琛ㄥ璞″け璐? };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "setup_temp_class_plan", Success = false, Result = "创建或获取临时课表对象失败" };
         }
 
         string changeDescription = "";
@@ -573,14 +578,14 @@ public class ToolExecutor
                 int targetIdx = ci == -1 ? tempPlan.Classes.Count - 1 : (ci > 0 ? ci - 1 : 0);
                 if (targetIdx >= 0 && targetIdx < tempPlan.Classes.Count)
                 {
-                    var oldSubName = ProfileCompat.TryGetSubject(profile, ProfileCompat.GetSubjectId(tempPlan.Classes[targetIdx]), out var oldSub) && oldSub != null ? oldSub.Name : "鏈畾";
+                    var oldSubName = ProfileCompat.TryGetSubject(profile, ProfileCompat.GetSubjectId(tempPlan.Classes[targetIdx]), out var oldSub) && oldSub != null ? oldSub.Name : "未定";
                     ProfileCompat.SetSubjectId(tempPlan.Classes[targetIdx], targetSubGuid);
                     tempPlan.Classes[targetIdx].IsChangedClass = true;
-                    changedSlots.Add($"绗?{targetIdx + 1} 鑺傦紙鍘熴€恵oldSubName}銆戯級");
+                    changedSlots.Add($"第 {targetIdx + 1} 节（原【{oldSubName}】）");
                 }
             }
 
-            changeDescription = $"宸插皢 {string.Join(" 涓?", changedSlots)} 鍙樻洿涓恒€恵subjectName}銆?;
+            changeDescription = $"已将 {string.Join(" 与 ", changedSlots)} 变更为【{subjectName}】";
         }
         else if (args.TryGetPropertyValue("modifiedClasses", out var modNode) && modNode is JsonArray modArr)
         {
@@ -602,11 +607,11 @@ public class ToolExecutor
                 tempPlan.Classes[i].IsChangedClass = true;
                 changedCount++;
             }
-            changeDescription = $"宸叉洿鏂?{changedCount} 鑺傝绋嬪畨鎺?;
+            changeDescription = $"已更新 {changedCount} 节课程安排";
         }
         else
         {
-            changeDescription = "宸插悓姝ョ敓鎴愪复鏃跺眰";
+            changeDescription = "已同步生成临时层";
         }
 
         profile.IsOverlayClassPlanEnabled = true;
@@ -624,11 +629,11 @@ public class ToolExecutor
             ToolCallId = toolId,
             Name = "setup_temp_class_plan",
             Success = true,
-            Result = $"涓存椂璋冭宸茬敓鏁堬紒\n" +
-                     $"鈥?鐢熸晥鏃ユ湡锛歿targetDate:yyyy-MM-dd}锛坽GetChineseWeekDay(targetDate.DayOfWeek)}锛塡n" +
-                     $"鈥?鍩虹璇捐〃锛氥€恵sourcePlan.Name}銆慭n" +
-                     $"鈥?璋冩暣鍐呭锛歿changeDescription}\n" +
-                     $"鈥?鐘舵€侊細宸插嵆鏃舵縺娲诲苟鍦?ClassIsland 涓敓鏁堟樉绀恒€?
+            Result = $"临时调课已生效！\n" +
+                     $"• 生效日期：{targetDate:yyyy-MM-dd}（{GetChineseWeekDay(targetDate.DayOfWeek)}）\n" +
+                     $"• 基础课表：【{sourcePlan.Name}】\n" +
+                     $"• 调整内容：{changeDescription}\n" +
+                     $"• 状态：已即时激活并在 ClassIsland 中生效显示。"
         };
     }
 
@@ -642,7 +647,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "get_app_settings",
                 Success = false,
-                Result = "褰撳墠瀹夸富璁剧疆鏈嶅姟鏈氨缁垨鏈壘鍒?
+                Result = "当前宿主设置服务未就绪或未找到"
             };
         }
 
@@ -704,7 +709,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "update_app_settings",
                 Success = false,
-                Result = "褰撳墠瀹夸富璁剧疆鏈嶅姟鏈氨缁紝鏃犳硶閫氳繃鎺ュ彛淇敼璁剧疆"
+                Result = "当前宿主设置服务未就绪，无法通过接口修改设置"
             };
         }
 
@@ -748,7 +753,8 @@ public class ToolExecutor
             }
         }
 
-        // 1) 鎸夌櫧鍚嶅崟鍖归厤鍏峰悕鍙傛暟锛堟敮鎸?camelCase / PascalCase 涓ょ鍐欐硶锛?        foreach (var propName in AppSettingPropertyNames)
+        // 1) 按白名单匹配具名参数（支持 camelCase / PascalCase 两种写法）
+        foreach (var propName in AppSettingPropertyNames)
         {
             var camel = char.ToLowerInvariant(propName[0]) + propName[1..];
             if (args.TryGetPropertyValue(camel, out var node) || args.TryGetPropertyValue(propName, out node))
@@ -757,13 +763,14 @@ public class ToolExecutor
             }
         }
 
-        // 2) 甯歌鍒悕
+        // 2) 常见别名
         if (args.TryGetPropertyValue("timeOffset", out var toAlias) || args.TryGetPropertyValue("offset", out toAlias))
         {
             TrySetProp("TimeOffsetSeconds", toAlias);
         }
 
-        // 3) 涓婚鍒囨崲闇€瑕侀€氱煡涓婚鏈嶅姟鍒锋柊锛屼粎鏀瑰睘鎬т笉浼氱珛鍗抽噸缁?        if (updatedList.Any(s => s.StartsWith("Theme = ")))
+        // 3) 主题切换需要通知主题服务刷新，仅改属性不会立即重绘
+        if (updatedList.Any(s => s.StartsWith("Theme = ")))
         {
             try
             {
@@ -780,7 +787,8 @@ public class ToolExecutor
             catch { }
         }
 
-        // 4) 浠绘剰閿€煎鍏滃簳锛堜粛鍙楃櫧鍚嶅崟绾︽潫锛岄槻姝㈣鏀归泦鍚堢被璁剧疆锛?        if (args.TryGetPropertyValue("customSettings", out var customNode) && customNode is JsonObject customObj)
+        // 4) 任意键值对兜底（仍受白名单约束，防止误改集合类设置）
+        if (args.TryGetPropertyValue("customSettings", out var customNode) && customNode is JsonObject customObj)
         {
             foreach (var kv in customObj)
             {
@@ -800,7 +808,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "update_app_settings",
                 Success = false,
-                Result = "鏈彁渚涙垨鏈尮閰嶅埌闇€瑕佷慨鏀圭殑鏈夋晥璁剧疆椤?
+                Result = "未提供或未匹配到需要修改的有效设置项"
             };
         }
 
@@ -809,7 +817,7 @@ public class ToolExecutor
             ToolCallId = toolId,
             Name = "update_app_settings",
             Success = true,
-            Result = $"璁剧疆淇敼鎴愬姛涓斿凡鍗虫椂鐢熸晥锛堟棤闇€鐢ㄦ埛鎵嬪姩鐐瑰嚮锛夛細\n鈥?" + string.Join("\n鈥?", updatedList)
+            Result = $"设置修改成功且已即时生效（无需用户手动点击）：\n• " + string.Join("\n• ", updatedList)
         };
     }
 
@@ -847,7 +855,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "get_plugin_settings",
                 Success = false,
-                Result = "鎻掍欢璁剧疆鏈氨缁?
+                Result = "插件设置未就绪"
             };
         }
 
@@ -903,7 +911,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "update_plugin_settings",
                 Success = false,
-                Result = "鎻掍欢璁剧疆鏈氨缁?
+                Result = "插件设置未就绪"
             };
         }
 
@@ -911,7 +919,7 @@ public class ToolExecutor
         var changes = new List<string>();
         var action = args["action"]?.ToString().Trim().ToLowerInvariant() ?? "";
 
-        // ---------- 渚涘簲鍟嗗鍒犳敼 ----------
+        // ---------- 供应商增删改 ----------
         switch (action)
         {
             case "add_provider":
@@ -923,7 +931,7 @@ public class ToolExecutor
                     return new ToolExecutionResult
                     {
                         ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                        Result = "add_provider 闇€瑕?providerName 涓?baseUrl"
+                        Result = "add_provider 需要 providerName 与 baseUrl"
                     };
                 }
 
@@ -932,7 +940,7 @@ public class ToolExecutor
                     return new ToolExecutionResult
                     {
                         ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                        Result = $"渚涘簲鍟嗐€寋name}銆嶅凡瀛樺湪锛岃鏀圭敤 set_provider 淇敼"
+                        Result = $"供应商「{name}」已存在，请改用 set_provider 修改"
                     };
                 }
 
@@ -957,7 +965,7 @@ public class ToolExecutor
                 {
                     _pluginSettings.ActiveProviderId = provider.Id;
                 }
-                changes.Add($"宸叉柊澧炰緵搴斿晢銆寋name}銆嶏紙{baseUrl}锛夛紝妯″瀷 {provider.Models.Count} 涓?);
+                changes.Add($"已新增供应商「{name}」（{baseUrl}），模型 {provider.Models.Count} 个");
                 break;
             }
 
@@ -969,7 +977,7 @@ public class ToolExecutor
                     return new ToolExecutionResult
                     {
                         ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                        Result = "鏈壘鍒版寚瀹氫緵搴斿晢锛屽彲鍏堢敤 get_plugin_settings 鏌ョ湅鐜版湁渚涘簲鍟?
+                        Result = "未找到指定供应商，可先用 get_plugin_settings 查看现有供应商"
                     };
                 }
 
@@ -977,7 +985,7 @@ public class ToolExecutor
                 if (args["newName"] != null) target.Name = args["newName"]!.ToString().Trim();
                 if (args["baseUrl"] != null) target.BaseUrl = args["baseUrl"]!.ToString().Trim();
                 if (args["apiKey"] != null) target.ApiKey = args["apiKey"]!.ToString().Trim();
-                changes.Add($"宸叉洿鏂颁緵搴斿晢銆寋oldName}銆?);
+                changes.Add($"已更新供应商「{oldName}」");
                 break;
             }
 
@@ -989,7 +997,7 @@ public class ToolExecutor
                     return new ToolExecutionResult
                     {
                         ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                        Result = "鏈壘鍒版寚瀹氫緵搴斿晢"
+                        Result = "未找到指定供应商"
                     };
                 }
                 if (_pluginSettings.Providers.Count <= 1)
@@ -997,7 +1005,7 @@ public class ToolExecutor
                     return new ToolExecutionResult
                     {
                         ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                        Result = "鑷冲皯闇€淇濈暀涓€涓緵搴斿晢锛屾棤娉曞垹闄?
+                        Result = "至少需保留一个供应商，无法删除"
                     };
                 }
 
@@ -1006,7 +1014,7 @@ public class ToolExecutor
                 {
                     _pluginSettings.ActiveProviderId = _pluginSettings.Providers.FirstOrDefault()?.Id ?? "";
                 }
-                changes.Add($"宸插垹闄や緵搴斿晢銆寋target.Name}銆?);
+                changes.Add($"已删除供应商「{target.Name}」");
                 break;
             }
 
@@ -1021,7 +1029,7 @@ public class ToolExecutor
                     return new ToolExecutionResult
                     {
                         ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                        Result = "鏈壘鍒版寚瀹氫緵搴斿晢"
+                        Result = "未找到指定供应商"
                     };
                 }
 
@@ -1031,7 +1039,7 @@ public class ToolExecutor
                     return new ToolExecutionResult
                     {
                         ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                        Result = "缂哄皯 modelName"
+                        Result = "缺少 modelName"
                     };
                 }
 
@@ -1041,12 +1049,12 @@ public class ToolExecutor
                     if (existing == null)
                     {
                         target.Models.Add(new AiModelItem(modelName, true));
-                        changes.Add($"宸蹭负銆寋target.Name}銆嶆坊鍔犳ā鍨?{modelName}锛堝凡鍚敤锛?);
+                        changes.Add($"已为「{target.Name}」添加模型 {modelName}（已启用）");
                     }
                     else
                     {
                         existing.IsEnabled = true;
-                        changes.Add($"妯″瀷 {modelName} 宸插瓨鍦紝宸茬疆涓哄惎鐢?);
+                        changes.Add($"模型 {modelName} 已存在，已置为启用");
                     }
                 }
                 else if (action == "remove_model")
@@ -1056,11 +1064,11 @@ public class ToolExecutor
                         return new ToolExecutionResult
                         {
                             ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                            Result = $"渚涘簲鍟嗐€寋target.Name}銆嶄笅娌℃湁妯″瀷 {modelName}"
+                            Result = $"供应商「{target.Name}」下没有模型 {modelName}"
                         };
                     }
                     target.Models.Remove(existing);
-                    changes.Add($"宸蹭粠銆寋target.Name}銆嶇Щ闄ゆā鍨?{modelName}");
+                    changes.Add($"已从「{target.Name}」移除模型 {modelName}");
                 }
                 else
                 {
@@ -1069,11 +1077,11 @@ public class ToolExecutor
                         return new ToolExecutionResult
                         {
                             ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                            Result = $"渚涘簲鍟嗐€寋target.Name}銆嶄笅娌℃湁妯″瀷 {modelName}"
+                            Result = $"供应商「{target.Name}」下没有模型 {modelName}"
                         };
                     }
                     existing.IsEnabled = action == "enable_model";
-                    changes.Add($"妯″瀷 {modelName} 宸瞷(existing.IsEnabled ? "鍚敤" : "鍋滅敤")}");
+                    changes.Add($"模型 {modelName} 已{(existing.IsEnabled ? "启用" : "停用")}");
                 }
                 break;
             }
@@ -1087,7 +1095,7 @@ public class ToolExecutor
                     return new ToolExecutionResult
                     {
                         ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                        Result = "set_active_model 闇€瑕?providerName 涓?modelName"
+                        Result = "set_active_model 需要 providerName 与 modelName"
                     };
                 }
 
@@ -1102,37 +1110,37 @@ public class ToolExecutor
                 }
 
                 _pluginSettings.SelectActiveModel(target.Id, modelName);
-                changes.Add($"褰撳墠妯″瀷宸插垏鎹负 [{target.Name}] {modelName}");
+                changes.Add($"当前模型已切换为 [{target.Name}] {modelName}");
                 break;
             }
 
             case "":
-                break; // 绾瓧娈垫洿鏂帮紝鏃犻渶 action
+                break; // 纯字段更新，无需 action
 
             default:
                 return new ToolExecutionResult
                 {
                     ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                    Result = $"鏈煡鎿嶄綔绫诲瀷: {action}"
+                    Result = $"未知操作类型: {action}"
                 };
         }
 
-        // ---------- 绾瓧娈垫洿鏂?----------
+        // ---------- 纯字段更新 ----------
         if (args["isMemoryEnabled"] is JsonNode memNode)
         {
             _pluginSettings.IsMemoryEnabled = memNode.GetValue<bool>();
-            changes.Add($"闀挎湡璁板繂宸瞷(_pluginSettings.IsMemoryEnabled ? "鍚敤" : "鍋滅敤")}");
+            changes.Add($"长期记忆已{(_pluginSettings.IsMemoryEnabled ? "启用" : "停用")}");
         }
         if (args["isCommandExecutionEnabled"] is JsonNode cmdNode)
         {
             var enabled = cmdNode.GetValue<bool>();
             _pluginSettings.IsCommandExecutionEnabled = enabled;
-            changes.Add($"鍛戒护琛屾墽琛屾潈闄愬凡{(enabled ? "寮€鍚? : "鍏抽棴")}");
+            changes.Add($"命令行执行权限已{(enabled ? "开启" : "关闭")}");
         }
         if (args["customPrompt"] is JsonNode promptNode)
         {
             _pluginSettings.CustomPrompt = promptNode.ToString();
-            changes.Add("鑷畾涔夌郴缁熸彁绀鸿瘝宸叉洿鏂?);
+            changes.Add("自定义系统提示词已更新");
         }
         if (args["maxToolIterations"] is JsonNode iterNode)
         {
@@ -1140,17 +1148,17 @@ public class ToolExecutor
             if (int.TryParse(raw, out var parsedIter))
             {
                 _pluginSettings.MaxToolIterations = Math.Clamp(parsedIter, 1, 50);
-                changes.Add($"宸ュ叿璋冪敤杞暟涓婇檺宸茶涓?{_pluginSettings.MaxToolIterations}");
+                changes.Add($"工具调用轮数上限已设为 {_pluginSettings.MaxToolIterations}");
             }
             else
             {
-                changes.Add("宸ュ叿璋冪敤杞暟涓婇檺鏈慨鏀癸紙闇€瑕?1鈥?0 鐨勬暣鏁帮級");
+                changes.Add("工具调用轮数上限未修改（需要 1–50 的整数）");
             }
         }
         if (args["customMemory"] is JsonNode memoryNode)
         {
             _pluginSettings.CustomMemory = memoryNode.ToString();
-            changes.Add("闀挎湡璁板繂鍐呭宸叉洿鏂?);
+            changes.Add("长期记忆内容已更新");
         }
 
         if (changes.Count == 0)
@@ -1158,7 +1166,7 @@ public class ToolExecutor
             return new ToolExecutionResult
             {
                 ToolCallId = toolId, Name = "update_plugin_settings", Success = false,
-                Result = "鏈彁渚涗换浣曟湁鏁堢殑鎻掍欢璁剧疆淇敼椤?
+                Result = "未提供任何有效的插件设置修改项"
             };
         }
 
@@ -1170,7 +1178,7 @@ public class ToolExecutor
             ToolCallId = toolId,
             Name = "update_plugin_settings",
             Success = true,
-            Result = "鎻掍欢璁剧疆宸叉洿鏂板苟淇濆瓨锛歕n鈥?" + string.Join("\n鈥?", changes)
+            Result = "插件设置已更新并保存：\n• " + string.Join("\n• ", changes)
         };
     }
 
@@ -1187,16 +1195,16 @@ public class ToolExecutor
         var uriStr = args["pageUri"]?.GetValue<string>()?.Trim() ?? "";
         if (string.IsNullOrWhiteSpace(uriStr))
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "navigate_app_page", Success = false, Result = "URI 涓嶈兘涓虹┖" };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "navigate_app_page", Success = false, Result = "URI 不能为空" };
         }
 
         if (_uriService != null)
         {
             _uriService.NavigateWrapped(new Uri(uriStr));
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "navigate_app_page", Success = true, Result = $"宸叉垚鍔熻烦杞埌椤甸潰: {uriStr}" };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "navigate_app_page", Success = true, Result = $"已成功跳转到页面: {uriStr}" };
         }
 
-        return new ToolExecutionResult { ToolCallId = toolId, Name = "navigate_app_page", Success = false, Result = "瀵艰埅鏈嶅姟涓嶅彲鐢? };
+        return new ToolExecutionResult { ToolCallId = toolId, Name = "navigate_app_page", Success = false, Result = "导航服务不可用" };
     }
 
     private ToolExecutionResult ExecuteGetCurrentTime(string toolId)
@@ -1253,7 +1261,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "update_memory",
                 Success = false,
-                Result = "璁板繂绯荤粺瀛樺偍閰嶇疆鏈氨缁?
+                Result = "记忆系统存储配置未就绪"
             };
         }
 
@@ -1264,7 +1272,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "update_memory",
                 Success = false,
-                Result = "鐢ㄦ埛宸插湪璁剧疆涓叧闂簡 AI 璁板繂绯荤粺锛屾棤娉曞啓鍏ユ垨鏇存柊鏂拌蹇嗐€?
+                Result = "用户已在设置中关闭了 AI 记忆系统，无法写入或更新新记忆。"
             };
         }
 
@@ -1276,7 +1284,7 @@ public class ToolExecutor
             case "add":
                 if (string.IsNullOrWhiteSpace(content))
                 {
-                    return new ToolExecutionResult { ToolCallId = toolId, Name = "update_memory", Success = false, Result = "璁板繂鍐呭涓嶈兘涓虹┖" };
+                    return new ToolExecutionResult { ToolCallId = toolId, Name = "update_memory", Success = false, Result = "记忆内容不能为空" };
                 }
                 var currentMemory = _pluginSettings.CustomMemory?.Trim() ?? "";
                 if (string.IsNullOrWhiteSpace(currentMemory))
@@ -1295,7 +1303,7 @@ public class ToolExecutor
                     ToolCallId = toolId,
                     Name = "update_memory",
                     Success = true,
-                    Result = $"宸叉垚鍔熸坊鍔犺蹇嗭細鈥渰content}鈥濄€傚綋鍓嶈蹇嗗凡鏇存柊骞跺凡鎸佷箙鍖栦繚瀛樸€?
+                    Result = $"已成功添加记忆：“{content}”。当前记忆已更新并已持久化保存。"
                 };
 
             case "set":
@@ -1308,7 +1316,7 @@ public class ToolExecutor
                     ToolCallId = toolId,
                     Name = "update_memory",
                     Success = true,
-                    Result = "宸叉垚鍔熻鐩栧苟鏇存柊鍏ㄩ儴璁板繂搴撳唴瀹广€?
+                    Result = "已成功覆盖并更新全部记忆库内容。"
                 };
 
             case "clear":
@@ -1321,7 +1329,7 @@ public class ToolExecutor
                     ToolCallId = toolId,
                     Name = "update_memory",
                     Success = true,
-                    Result = "宸叉竻绌烘墍鏈夐暱鏈熻蹇嗐€?
+                    Result = "已清空所有长期记忆。"
                 };
 
             default:
@@ -1330,7 +1338,7 @@ public class ToolExecutor
                     ToolCallId = toolId,
                     Name = "update_memory",
                     Success = false,
-                    Result = $"涓嶆敮鎸佺殑鎿嶄綔绫诲瀷: {action}锛屾敮鎸佺殑鎿嶄綔涓?add, set, clear銆?
+                    Result = $"不支持的操作类型: {action}，支持的操作为 add, set, clear。"
                 };
         }
     }
@@ -1344,14 +1352,14 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "execute_command",
                 Success = false,
-                Result = "鐢ㄦ埛鏈湪銆愯缃?-> IslandAgent璁剧疆 -> 楂樼骇鍋忓ソ銆戜腑寮€鍚€滃厑璁告墽琛屽懡浠よ鍛戒护鈥濇潈闄愶紝鍛戒护宸茶绯荤粺鎷掔粷鎵ц銆?
+                Result = "用户未在【设置 -> IslandAgent设置 -> 高级偏好】中开启“允许执行命令行命令”权限，命令已被系统拒绝执行。"
             };
         }
 
         var cmd = args["command"]?.GetValue<string>()?.Trim();
         if (string.IsNullOrWhiteSpace(cmd))
         {
-            return new ToolExecutionResult { ToolCallId = toolId, Name = "execute_command", Success = false, Result = "鍛戒护涓嶈兘涓虹┖" };
+            return new ToolExecutionResult { ToolCallId = toolId, Name = "execute_command", Success = false, Result = "命令不能为空" };
         }
 
         var timeoutSec = 15;
@@ -1391,7 +1399,7 @@ public class ToolExecutor
                     ToolCallId = toolId,
                     Name = "execute_command",
                     Success = false,
-                    Result = $"鍛戒护鎵ц瓒呮椂锛堣秴杩?{timeoutSec} 绉掞級锛岃繘绋嬪凡缁堟銆?
+                    Result = $"命令执行超时（超过 {timeoutSec} 秒），进程已终止。"
                 };
             }
 
@@ -1400,15 +1408,15 @@ public class ToolExecutor
             var exitCode = process.ExitCode;
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine($"閫€鍑轰唬鐮? {exitCode}");
+            sb.AppendLine($"退出代码: {exitCode}");
             if (!string.IsNullOrWhiteSpace(stdout))
             {
-                sb.AppendLine("銆愭爣鍑嗚緭鍑恒€?");
+                sb.AppendLine("【标准输出】:");
                 sb.AppendLine(stdout.Trim());
             }
             if (!string.IsNullOrWhiteSpace(stderr))
             {
-                sb.AppendLine("銆愰敊璇緭鍑恒€?");
+                sb.AppendLine("【错误输出】:");
                 sb.AppendLine(stderr.Trim());
             }
 
@@ -1427,7 +1435,7 @@ public class ToolExecutor
                 ToolCallId = toolId,
                 Name = "execute_command",
                 Success = false,
-                Result = $"鎵ц寮傚父: {ex.Message}"
+                Result = $"执行异常: {ex.Message}"
             };
         }
     }
@@ -1438,15 +1446,15 @@ public class ToolExecutor
         if (!string.IsNullOrWhiteSpace(dateQuery))
         {
             var q = dateQuery.Trim().ToLowerInvariant();
-            if (q.Contains("鏄?) || q.Contains("tomorrow"))
+            if (q.Contains("明") || q.Contains("tomorrow"))
             {
                 return today.AddDays(1);
             }
-            if (q.Contains("鍚庡ぉ"))
+            if (q.Contains("后天"))
             {
                 return today.AddDays(2);
             }
-            if (q.Contains("浠?) || q.Contains("today"))
+            if (q.Contains("今") || q.Contains("today"))
             {
                 return today;
             }
@@ -1476,8 +1484,8 @@ public class ToolExecutor
     }
 
     /// <summary>
-    /// 按名称/星期查找基础课表（排除临时层）。返回键值对，键在两代宿主下类型不同，
-    /// 调用方一律通过 <c>Key.ToString()</c> 取字符串形式。
+    /// 按名称/星期查找基础课表（排除临时层）。返回的键统一为字符串形式，
+    /// 以屏蔽 1.x(string) 与 2.x(Guid) 的字典键类型差异。
     /// </summary>
     private static KeyValuePair<string, ClassPlan> FindSourcePlan(Profile profile, string planName, DateTime targetDate)
     {
@@ -1503,7 +1511,7 @@ public class ToolExecutor
     }
 
     /// <summary>
-    /// 把课表字典项统一成字符串键，屏蔽 1.x(string) 与 2.x(Guid) 的键类型差异。
+    /// 统一课表字典键为字符串，屏蔽 1.x(string) 与 2.x(Guid) 的差异。
     /// </summary>
     private static KeyValuePair<string, ClassPlan> ToStringKeyed<TKey>(KeyValuePair<TKey, ClassPlan> pair)
         => new(Convert.ToString(pair.Key) ?? string.Empty, pair.Value);
@@ -1511,34 +1519,34 @@ public class ToolExecutor
     public static int ParseWeekDay(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return -1;
-        var s = name.Replace("绀兼嫓", "鍛?).Replace("鏄熸湡", "鍛?);
-        if (s.Contains("鍛ㄤ竴") || s.Contains("鏄熸湡涓€") || s.Contains("涓€")) return (int)DayOfWeek.Monday;
-        if (s.Contains("鍛ㄤ簩") || s.Contains("鏄熸湡浜?) || s.Contains("浜?)) return (int)DayOfWeek.Tuesday;
-        if (s.Contains("鍛ㄤ笁") || s.Contains("鏄熸湡涓?) || s.Contains("涓?)) return (int)DayOfWeek.Wednesday;
-        if (s.Contains("鍛ㄥ洓") || s.Contains("鏄熸湡鍥?) || s.Contains("鍥?)) return (int)DayOfWeek.Thursday;
-        if (s.Contains("鍛ㄤ簲") || s.Contains("鏄熸湡浜?) || s.Contains("浜?)) return (int)DayOfWeek.Friday;
-        if (s.Contains("鍛ㄥ叚") || s.Contains("鏄熸湡鍏?) || s.Contains("鍏?)) return (int)DayOfWeek.Saturday;
-        if (s.Contains("鍛ㄦ棩") || s.Contains("鍛ㄥぉ") || s.Contains("鏄熸湡鏃?) || s.Contains("鏄熸湡澶?) || s.Contains("鏃?) || s.Contains("澶?)) return (int)DayOfWeek.Sunday;
+        var s = name.Replace("礼拜", "周").Replace("星期", "周");
+        if (s.Contains("周一") || s.Contains("星期一") || s.Contains("一")) return (int)DayOfWeek.Monday;
+        if (s.Contains("周二") || s.Contains("星期二") || s.Contains("二")) return (int)DayOfWeek.Tuesday;
+        if (s.Contains("周三") || s.Contains("星期三") || s.Contains("三")) return (int)DayOfWeek.Wednesday;
+        if (s.Contains("周四") || s.Contains("星期四") || s.Contains("四")) return (int)DayOfWeek.Thursday;
+        if (s.Contains("周五") || s.Contains("星期五") || s.Contains("五")) return (int)DayOfWeek.Friday;
+        if (s.Contains("周六") || s.Contains("星期六") || s.Contains("六")) return (int)DayOfWeek.Saturday;
+        if (s.Contains("周日") || s.Contains("周天") || s.Contains("星期日") || s.Contains("星期天") || s.Contains("日") || s.Contains("天")) return (int)DayOfWeek.Sunday;
         return -1;
     }
 
     public static string NormalizeWeekDayName(string name)
     {
-        return name.Replace("鏄熸湡", "鍛?).Replace("绀兼嫓", "鍛?).Trim();
+        return name.Replace("星期", "周").Replace("礼拜", "周").Trim();
     }
 
     public static string GetChineseWeekDay(DayOfWeek dow)
     {
         return dow switch
         {
-            DayOfWeek.Monday => "鍛ㄤ竴",
-            DayOfWeek.Tuesday => "鍛ㄤ簩",
-            DayOfWeek.Wednesday => "鍛ㄤ笁",
-            DayOfWeek.Thursday => "鍛ㄥ洓",
-            DayOfWeek.Friday => "鍛ㄤ簲",
-            DayOfWeek.Saturday => "鍛ㄥ叚",
-            DayOfWeek.Sunday => "鍛ㄦ棩",
-            _ => "鏈煡"
+            DayOfWeek.Monday => "周一",
+            DayOfWeek.Tuesday => "周二",
+            DayOfWeek.Wednesday => "周三",
+            DayOfWeek.Thursday => "周四",
+            DayOfWeek.Friday => "周五",
+            DayOfWeek.Saturday => "周六",
+            DayOfWeek.Sunday => "周日",
+            _ => "未知"
         };
     }
 
@@ -1546,13 +1554,13 @@ public class ToolExecutor
     {
         return dow switch
         {
-            DayOfWeek.Monday => "涓€",
-            DayOfWeek.Tuesday => "浜?,
-            DayOfWeek.Wednesday => "涓?,
-            DayOfWeek.Thursday => "鍥?,
-            DayOfWeek.Friday => "浜?,
-            DayOfWeek.Saturday => "鍏?,
-            DayOfWeek.Sunday => "鏃?,
+            DayOfWeek.Monday => "一",
+            DayOfWeek.Tuesday => "二",
+            DayOfWeek.Wednesday => "三",
+            DayOfWeek.Thursday => "四",
+            DayOfWeek.Friday => "五",
+            DayOfWeek.Saturday => "六",
+            DayOfWeek.Sunday => "日",
             _ => ""
         };
     }
