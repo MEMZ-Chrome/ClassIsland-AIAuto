@@ -42,4 +42,9 @@
     </PackageReference>
   </ItemGroup>
 
+  <!-- 1.x 与 2.x 的档案模型形状不同（字典键、时间字段），用编译常量在 ProfileCompat 里分流 -->
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
+    <DefineConstants>$(DefineConstants);CLASSISLAND_1X</DefineConstants>
+  </PropertyGroup>
+
 </Project>
