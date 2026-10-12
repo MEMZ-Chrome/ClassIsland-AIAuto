@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
@@ -14,7 +14,7 @@ using ClassIsland.Core.Enums.SettingsWindow;
 
 namespace ClassIsland.Automation.V2.Views.SettingsPages;
 
-[SettingsPageInfo("memzchrome.islandagent.settings", "IslandAgent璁剧疆", SettingsPageCategory.External)]
+[SettingsPageInfo("memzchrome.islandagent.settings", "IslandAgent设置", SettingsPageCategory.External)]
 public partial class AutomationSettingsPage : SettingsPageBase
 {
     private PluginSettings _settings;
@@ -23,10 +23,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
     private bool _isUpdatingUi = false;
     private bool _isUnlocked = false;
 
-    // 妯℃€佸脊绐楃紪杈戠姸鎬?    private AiProviderConfig? _dialogEditingProvider = null;
+    // 模态弹窗编辑状态
+    private AiProviderConfig? _dialogEditingProvider = null;
     private List<AiModelItem> _dialogModels = new();
 
-    // 娴姩 Toast 瀹氭椂鍣?    private DispatcherTimer? _toastTimer;
+    // 浮动 Toast 定时器
+    private DispatcherTimer? _toastTimer;
 
     public AutomationSettingsPage()
     {
@@ -35,7 +37,8 @@ public partial class AutomationSettingsPage : SettingsPageBase
         var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
         Directory.CreateDirectory(configDir);
         _settingsFilePath = Path.Combine(configDir, "settings.json");
-        // 澶嶇敤鍏变韩瀹炰緥鑰屼笉鏄噸鏂颁粠纾佺洏鍔犺浇锛岄伩鍏嶄笌瀵硅瘽绐楀彛鎸佹湁鐨勯厤缃璞″垎鍙夈€?        SettingsManager.SetSettingsFilePath(_settingsFilePath);
+        // 复用共享实例而不是重新从磁盘加载，避免与对话窗口持有的配置对象分叉。
+        SettingsManager.SetSettingsFilePath(_settingsFilePath);
         _settings = SettingsManager.Current;
         _settings.EnsureProvidersInitialized();
 
@@ -96,7 +99,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
     private void InitSecurityState()
     {
-        // 鍏抽敭瀹夊叏璁捐锛氬緟楠岃瘉鐨勬殏瀛?TOTP 缁濅笉鑳戒娇椤甸潰杩涘叆閿佸畾鐘舵€侊紝闃叉鐢ㄦ埛鍥犳墜鐜湭鍚屾鑰屽崱姝伙紒
+        // 关键安全设计：待验证的暂存 TOTP 绝不能使页面进入锁定状态，防止用户因手环未同步而卡死！
         if (SecurityService.IsActiveProtectionEnabled(_settings) && !_isUnlocked)
         {
             if (LockOverlayBorder != null) LockOverlayBorder.IsVisible = true;
@@ -138,16 +141,16 @@ public partial class AutomationSettingsPage : SettingsPageBase
             if (LockOverlayBorder != null) LockOverlayBorder.IsVisible = false;
             if (MainSettingsScrollViewer != null) MainSettingsScrollViewer.IsVisible = true;
             if (UnlockPasswordBox != null) UnlockPasswordBox.Text = "";
-            ShowToast("瀹夊叏楠岃瘉閫氳繃锛屽凡瑙ｉ攣璁剧疆椤甸潰锛?);
+            ShowToast("安全验证通过，已解锁设置页面！");
         }
         else
         {
             if (UnlockErrorTextBlock != null)
             {
-                UnlockErrorTextBlock.Text = "瀵嗙爜鎴?TOTP 鍔ㄦ€侀獙璇佺爜閿欒锛岃閲嶆柊杈撳叆锛?;
+                UnlockErrorTextBlock.Text = "密码或 TOTP 动态验证码错误，请重新输入！";
                 UnlockErrorTextBlock.IsVisible = true;
             }
-            ShowToast("楠岃瘉澶辫触锛岃閲嶈瘯锛?, isError: true);
+            ShowToast("验证失败，请重试！", isError: true);
         }
     }
 
@@ -156,11 +159,11 @@ public partial class AutomationSettingsPage : SettingsPageBase
         try
         {
             SettingsManager.Save(_settings);
-            if (StatusTextBlock != null) StatusTextBlock.Text = "璁剧疆宸茶嚜鍔ㄤ繚瀛橈紒";
+            if (StatusTextBlock != null) StatusTextBlock.Text = "设置已自动保存！";
         }
         catch (Exception ex)
         {
-            if (StatusTextBlock != null) StatusTextBlock.Text = $"淇濆瓨澶辫触: {ex.Message}";
+            if (StatusTextBlock != null) StatusTextBlock.Text = $"保存失败: {ex.Message}";
         }
     }
 
@@ -223,7 +226,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             {
                 SyncFromInputs();
                 SaveSettingsToFile();
-                ShowToast("鎵€鏈夎缃凡淇濆瓨鎴愬姛锛?);
+                ShowToast("所有设置已保存成功！");
             };
         }
 
@@ -264,7 +267,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 if (CustomMemoryTextBox != null) CustomMemoryTextBox.Text = "";
                 _settings.CustomMemory = "";
                 AutoSave();
-                ShowToast("闀挎湡璁板繂搴撳凡娓呯┖骞朵繚瀛橈紒");
+                ShowToast("长期记忆库已清空并保存！");
             };
         }
     }
@@ -278,9 +281,9 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             ("DeepSeek", "https://api.deepseek.com"),
             ("OpenRouter", "https://openrouter.ai/api/v1"),
-            ("灏忕背 MiMo", "https://api.xiaomimimo.com/v1"),
+            ("小米 MiMo", "https://api.xiaomimimo.com/v1"),
             ("OpenAI", "https://api.openai.com/v1"),
-            ("鑷缓 Ollama", "http://localhost:11434/v1")
+            ("自建 Ollama", "http://localhost:11434/v1")
         };
 
         foreach (var p in presets)
@@ -302,11 +305,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
         if (DialogNameTextBox != null) DialogNameTextBox.Text = name;
         if (DialogBaseUrlTextBox != null) DialogBaseUrlTextBox.Text = baseUrl;
 
-        ShowToast($"宸插～鍏ャ€寋name}銆嶉缃湴鍧€锛岃濉啓瀵嗛挜鍚庣偣鍑昏嚜鍔ㄨ幏鍙栨ā鍨嬨€?);
+        ShowToast($"已填入「{name}」预置地址，请填写密钥后点击自动获取模型。");
     }
 
     /// <summary>
-    /// 娆¤鏂囧瓧鐢诲埛銆傛繁鑹蹭富棰樹笅鍐欐 Gray 浼氫笌鑳屾櫙绯婂湪涓€璧凤紝蹇呴』璺熼殢涓婚銆?    /// </summary>
+    /// 次要文字画刷。深色主题下写死 Gray 会与背景糊在一起，必须跟随主题。
+    /// </summary>
     private IBrush SubtleBrush
         => this.TryFindResource("TextFillColorSecondaryBrush", out var res) && res is IBrush b
             ? b
@@ -336,7 +340,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var emptyText = new TextBlock
             {
-                Text = "鏆傛棤渚涘簲鍟?,
+                Text = "暂无供应商",
                 Foreground = SubtleBrush,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
             };
@@ -365,7 +369,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var mainStack = new StackPanel { Spacing = 10 };
 
-            // 椤惰锛氬埆鍚嶄笌鎿嶄綔鎸夐挳
+            // 顶行：别名与操作按钮
             var topGrid = new Grid
             {
                 ColumnDefinitions = new ColumnDefinitions("*, Auto")
@@ -374,13 +378,13 @@ public partial class AutomationSettingsPage : SettingsPageBase
             var titleStack = new StackPanel { Spacing = 2 };
             var nameText = new TextBlock
             {
-                Text = string.IsNullOrWhiteSpace(provider.Name) ? "(鏈懡鍚嶄緵搴斿晢)" : provider.Name,
+                Text = string.IsNullOrWhiteSpace(provider.Name) ? "(未命名供应商)" : provider.Name,
                 FontSize = 15,
                 FontWeight = FontWeight.Bold
             };
             var urlText = new TextBlock
             {
-                Text = string.IsNullOrWhiteSpace(provider.BaseUrl) ? "(鏈缃?API 鍦板潃)" : provider.BaseUrl,
+                Text = string.IsNullOrWhiteSpace(provider.BaseUrl) ? "(未设置 API 地址)" : provider.BaseUrl,
                 FontSize = 11,
                 Foreground = SubtleBrush
             };
@@ -397,7 +401,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var editBtn = new Button
             {
-                Content = "缂栬緫",
+                Content = "编辑",
                 Padding = new Thickness(10, 4)
             };
             editBtn.Click += (_, _) => OpenEditProviderDialog(provider);
@@ -405,14 +409,14 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var delBtn = new Button
             {
-                Content = "鍒犻櫎",
+                Content = "删除",
                 Padding = new Thickness(10, 4)
             };
             delBtn.Click += (_, _) =>
             {
                 if (_settings.Providers.Count <= 1)
                 {
-                    ShowToast("鑷冲皯闇€淇濈暀涓€涓緵搴斿晢锛?, isError: true);
+                    ShowToast("至少需保留一个供应商！", isError: true);
                     return;
                 }
                 _settings.Providers.Remove(provider);
@@ -422,7 +426,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 }
                 SaveSettingsToFile();
                 RenderProvidersList();
-                ShowToast($"宸插垹闄や緵搴斿晢銆寋provider.Name}銆嶏紒");
+                ShowToast($"已删除供应商「{provider.Name}」！");
             };
             actionsStack.Children.Add(delBtn);
 
@@ -430,7 +434,8 @@ public partial class AutomationSettingsPage : SettingsPageBase
             topGrid.Children.Add(actionsStack);
             mainStack.Children.Add(topGrid);
 
-            // 鍒嗗壊绾?            var divider = new Border
+            // 分割线
+            var divider = new Border
             {
                 Height = 1,
                 Margin = new Thickness(0, 2)
@@ -441,10 +446,11 @@ public partial class AutomationSettingsPage : SettingsPageBase
             }
             mainStack.Children.Add(divider);
 
-            // 妯″瀷鍕鹃€夊尯鍩燂細鎸夊垪鎺掑竷锛屽绐楀彛涓嬭嚜鍔ㄩ摵寮€锛岄伩鍏嶅崱鐗囧彸渚уぇ鐗囩暀鐧?            var modelsStack = new StackPanel { Spacing = 6 };
+            // 模型勾选区域：按列排布，宽窗口下自动铺开，避免卡片右侧大片留白
+            var modelsStack = new StackPanel { Spacing = 6 };
             var modelsLabel = new TextBlock
             {
-                Text = "妯″瀷鍒楄〃",
+                Text = "模型列表",
                 FontSize = 11,
                 Foreground = SubtleBrush
             };
@@ -454,7 +460,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             {
                 var noModelsText = new TextBlock
                 {
-                    Text = "(鏆傛棤妯″瀷)",
+                    Text = "(暂无模型)",
                     FontSize = 11,
                     Foreground = SubtleBrush,
                     FontStyle = FontStyle.Italic
@@ -463,7 +469,9 @@ public partial class AutomationSettingsPage : SettingsPageBase
             }
             else
             {
-                // 鐢ㄥ浐瀹氬搴︾殑鍗曞厓鏍艰鍕鹃€夐」鎸夊垪瀵归綈锛屽绐楀彛涓嬭嚜鍔ㄩ摵寮€锛?                // 閬垮厤鍗＄墖鍙充晶鍑虹幇澶х墖鐣欑櫧銆?                var wrap = new WrapPanel
+                // 用固定宽度的单元格让勾选项按列对齐，宽窗口下自动铺开，
+                // 避免卡片右侧出现大片留白。
+                var wrap = new WrapPanel
                 {
                     Orientation = Avalonia.Layout.Orientation.Horizontal,
                     Margin = new Thickness(0, 2, 0, 0)
@@ -481,7 +489,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                     {
                         model.IsEnabled = cb.IsChecked == true;
                         SaveSettingsToFile();
-                        ShowToast($"宸瞷(model.IsEnabled ? "鍚敤" : "绂佺敤")}妯″瀷銆寋model.Name}銆?);
+                        ShowToast($"已{(model.IsEnabled ? "启用" : "禁用")}模型「{model.Name}」");
                     };
                     wrap.Children.Add(cb);
                 }
@@ -499,7 +507,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         _dialogEditingProvider = null;
         _dialogModels = new List<AiModelItem>();
 
-        if (DialogTitleTextBlock != null) DialogTitleTextBlock.Text = "娣诲姞渚涘簲鍟?;
+        if (DialogTitleTextBlock != null) DialogTitleTextBlock.Text = "添加供应商";
         if (DialogNameTextBox != null) DialogNameTextBox.Text = "";
         if (DialogBaseUrlTextBox != null) DialogBaseUrlTextBox.Text = "";
         if (DialogApiKeyTextBox != null) DialogApiKeyTextBox.Text = "";
@@ -514,7 +522,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         _dialogEditingProvider = provider;
         _dialogModels = provider.Models.Select(m => new AiModelItem(m.Name, m.IsEnabled)).ToList();
 
-        if (DialogTitleTextBlock != null) DialogTitleTextBlock.Text = $"缂栬緫渚涘簲鍟?- {provider.Name}";
+        if (DialogTitleTextBlock != null) DialogTitleTextBlock.Text = $"编辑供应商 - {provider.Name}";
         if (DialogNameTextBox != null) DialogNameTextBox.Text = provider.Name;
         if (DialogBaseUrlTextBox != null) DialogBaseUrlTextBox.Text = provider.BaseUrl;
         if (DialogApiKeyTextBox != null) DialogApiKeyTextBox.Text = provider.ApiKey;
@@ -533,7 +541,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             var hint = new TextBlock
             {
-                Text = "鏆傛棤妯″瀷",
+                Text = "暂无模型",
                 Foreground = SubtleBrush,
                 FontSize = 12,
                 Margin = new Thickness(4)
@@ -563,7 +571,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
             var delBtn = new Button
             {
-                Content = "鍒犻櫎",
+                Content = "删除",
                 Padding = new Thickness(8, 2),
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
             };
@@ -571,7 +579,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             {
                 _dialogModels.Remove(model);
                 RenderDialogModels();
-                ShowToast($"宸茬Щ闄ゆā鍨嬨€寋model.Name}銆?);
+                ShowToast($"已移除模型「{model.Name}」");
             };
             Grid.SetColumn(delBtn, 1);
 
@@ -591,11 +599,11 @@ public partial class AutomationSettingsPage : SettingsPageBase
             _dialogModels.Add(new AiModelItem(modelName, true));
             if (DialogNewModelTextBox != null) DialogNewModelTextBox.Text = "";
             RenderDialogModels();
-            ShowToast($"宸叉坊鍔犳ā鍨嬨€寋modelName}銆?);
+            ShowToast($"已添加模型「{modelName}」");
         }
         else
         {
-            ShowToast("璇ユā鍨嬪凡鍦ㄥ垪琛ㄤ腑锛?, isError: true);
+            ShowToast("该模型已在列表中！", isError: true);
         }
     }
 
@@ -606,11 +614,11 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
-            ShowToast("璇峰厛濉啓 API 鍦板潃 (Base URL)锛?, isError: true);
+            ShowToast("请先填写 API 地址 (Base URL)！", isError: true);
             return;
         }
 
-        ShowToast("姝ｅ湪浠?API 鑾峰彇妯″瀷鍒楄〃...");
+        ShowToast("正在从 API 获取模型列表...");
 
         try
         {
@@ -627,16 +635,16 @@ public partial class AutomationSettingsPage : SettingsPageBase
                     }
                 }
                 RenderDialogModels();
-                ShowToast($"鎴愬姛鑾峰彇 {models.Count} 涓ā鍨嬶紙鏂板 {addedCount} 涓級锛?);
+                ShowToast($"成功获取 {models.Count} 个模型（新增 {addedCount} 个）！");
             }
             else
             {
-                ShowToast("鏈兘鑾峰彇鍒颁换浣曟ā鍨嬶紝璇锋鏌ュ湴鍧€涓庡瘑閽ャ€?, isError: true);
+                ShowToast("未能获取到任何模型，请检查地址与密钥。", isError: true);
             }
         }
         catch (Exception ex)
         {
-            ShowToast($"鑾峰彇妯″瀷澶辫触: {ex.Message}", isError: true);
+            ShowToast($"获取模型失败: {ex.Message}", isError: true);
         }
     }
 
@@ -648,12 +656,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            ShowToast("璇疯緭鍏ヤ緵搴斿晢鍒悕锛?, isError: true);
+            ShowToast("请输入供应商别名！", isError: true);
             return;
         }
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
-            ShowToast("璇疯緭鍏?API 鍦板潃 (Base URL)锛?, isError: true);
+            ShowToast("请输入 API 地址 (Base URL)！", isError: true);
             return;
         }
 
@@ -674,7 +682,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             SaveSettingsToFile();
             CloseProviderDialog();
             RenderProvidersList();
-            ShowToast($"宸叉垚鍔熸坊鍔犱緵搴斿晢銆寋name}銆嶏紒");
+            ShowToast($"已成功添加供应商「{name}」！");
         }
         else
         {
@@ -686,7 +694,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             SaveSettingsToFile();
             CloseProviderDialog();
             RenderProvidersList();
-            ShowToast($"渚涘簲鍟嗐€寋name}銆嶄慨鏀瑰凡淇濆瓨锛?);
+            ShowToast($"供应商「{name}」修改已保存！");
         }
     }
 
@@ -723,7 +731,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 SaveSettingsToFile();
                 UpdateSecurityStateUi();
                 if (NewPasswordBox != null) NewPasswordBox.Text = "";
-                ShowToast(string.IsNullOrEmpty(newPwd) ? "鍥哄畾瀵嗙爜宸叉竻闄わ紒" : "鍥哄畾瀵嗙爜宸叉洿鏂帮紒");
+                ShowToast(string.IsNullOrEmpty(newPwd) ? "固定密码已清除！" : "固定密码已更新！");
             };
         }
 
@@ -735,7 +743,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 SaveSettingsToFile();
                 UpdateSecurityStateUi();
                 if (NewPasswordBox != null) NewPasswordBox.Text = "";
-                ShowToast("鍥哄畾瀵嗙爜宸叉竻闄わ紙鎭㈠涓烘棤瀵嗙爜锛夛紒");
+                ShowToast("固定密码已清除（恢复为无密码）！");
             };
         }
 
@@ -747,7 +755,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 SaveSettingsToFile();
                 DisplayTotpSetupCard(secret);
                 UpdateSecurityStateUi();
-                ShowToast("宸茬敓鎴愭柊鐨?TOTP 瀵嗛挜锛?);
+                ShowToast("已生成新的 TOTP 密钥！");
             };
         }
 
@@ -763,7 +771,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                     {
                         await topLevel.Clipboard.SetTextAsync(rawSecret);
                     }
-                    ShowToast("TOTP 瀵嗛挜瀛楃涓插凡澶嶅埗鍒板壀璐存澘锛?);
+                    ShowToast("TOTP 密钥字符串已复制到剪贴板！");
                 }
             };
         }
@@ -779,19 +787,19 @@ public partial class AutomationSettingsPage : SettingsPageBase
                     UpdateSecurityStateUi();
                     if (TotpVerifyResultTextBlock != null)
                     {
-                        TotpVerifyResultTextBlock.Text = "楠岃瘉閫氳繃锛乀OTP 鍔ㄦ€佸彛浠ゅ凡姝ｅ紡鐢熸晥淇濇姢銆?;
+                        TotpVerifyResultTextBlock.Text = "验证通过！TOTP 动态口令已正式生效保护。";
                         TotpVerifyResultTextBlock.Foreground = new SolidColorBrush(Colors.Green);
                     }
-                    ShowToast("TOTP 鍔ㄦ€佸彛浠ゅ凡姝ｅ紡婵€娲伙紒");
+                    ShowToast("TOTP 动态口令已正式激活！");
                 }
                 else
                 {
                     if (TotpVerifyResultTextBlock != null)
                     {
-                        TotpVerifyResultTextBlock.Text = "楠岃瘉鐮侀敊璇垨宸插け鏁堬紝璇风‘璁ゆ墜鐜?鎵嬫満褰撳墠鏃堕棿骞堕噸璇曘€?;
+                        TotpVerifyResultTextBlock.Text = "验证码错误或已失效，请确认手环/手机当前时间并重试。";
                         TotpVerifyResultTextBlock.Foreground = new SolidColorBrush(Colors.Red);
                     }
-                    ShowToast("TOTP 楠岃瘉澶辫触锛岃閲嶈瘯锛?, isError: true);
+                    ShowToast("TOTP 验证失败，请重试！", isError: true);
                 }
             };
         }
@@ -803,7 +811,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 SecurityService.CancelPendingTotp(_settings);
                 SaveSettingsToFile();
                 UpdateSecurityStateUi();
-                ShowToast("宸叉斁寮冩殏瀛樼殑 TOTP 閰嶇疆锛?);
+                ShowToast("已放弃暂存的 TOTP 配置！");
             };
         }
 
@@ -814,7 +822,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 SecurityService.DisableTotp(_settings);
                 SaveSettingsToFile();
                 UpdateSecurityStateUi();
-                ShowToast("TOTP 鍔ㄦ€佸彛浠ゅ凡鍏抽棴锛?);
+                ShowToast("TOTP 动态口令已关闭！");
             };
         }
     }
@@ -824,7 +832,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         if (PasswordStatusTextBlock != null)
         {
             bool hasPwd = SecurityService.HasPassword(_settings);
-            PasswordStatusTextBlock.Text = hasPwd ? "褰撳墠鐘舵€侊細宸茶缃浐瀹氬瘑鐮? : "褰撳墠鐘舵€侊細鏈缃浐瀹氬瘑鐮侊紙榛樿鏃犲瘑鐮侊級";
+            PasswordStatusTextBlock.Text = hasPwd ? "当前状态：已设置固定密码" : "当前状态：未设置固定密码（默认无密码）";
             if (ClearPasswordButton != null) ClearPasswordButton.IsVisible = hasPwd;
         }
 
@@ -832,22 +840,22 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             if (SecurityService.HasActiveTotp(_settings))
             {
-                TotpStatusTextBlock.Text = "褰撳墠鐘舵€侊細TOTP 鍔ㄦ€佸彛浠ゅ凡姝ｅ紡婵€娲荤敓鏁堜繚鎶?;
-                if (SetupTotpButton != null) SetupTotpButton.Content = "閲嶆柊閰嶇疆 TOTP";
+                TotpStatusTextBlock.Text = "当前状态：TOTP 动态口令已正式激活生效保护";
+                if (SetupTotpButton != null) SetupTotpButton.Content = "重新配置 TOTP";
                 if (DisableTotpButton != null) DisableTotpButton.IsVisible = true;
                 if (TotpSetupCard != null) TotpSetupCard.IsVisible = false;
             }
             else if (SecurityService.HasPendingTotp(_settings))
             {
-                TotpStatusTextBlock.Text = "褰撳墠鐘舵€侊細鍙戠幇鏆傚瓨鐨勫緟楠岃瘉 TOTP锛堝湪杈撳叆姝ｇ‘鍔ㄦ€佺爜鍓嶇粷涓嶇敓鏁堬級";
-                if (SetupTotpButton != null) SetupTotpButton.Content = "閲嶆柊鐢熸垚 TOTP";
+                TotpStatusTextBlock.Text = "当前状态：发现暂存的待验证 TOTP（在输入正确动态码前绝不生效）";
+                if (SetupTotpButton != null) SetupTotpButton.Content = "重新生成 TOTP";
                 if (DisableTotpButton != null) DisableTotpButton.IsVisible = false;
                 DisplayTotpSetupCard(_settings.PendingTotpSecret);
             }
             else
             {
-                TotpStatusTextBlock.Text = "褰撳墠鐘舵€侊細鏈惎鐢?TOTP 鍔ㄦ€佸彛浠?;
-                if (SetupTotpButton != null) SetupTotpButton.Content = "鐢熸垚骞堕厤缃?TOTP";
+                TotpStatusTextBlock.Text = "当前状态：未启用 TOTP 动态口令";
+                if (SetupTotpButton != null) SetupTotpButton.Content = "生成并配置 TOTP";
                 if (DisableTotpButton != null) DisableTotpButton.IsVisible = false;
                 if (TotpSetupCard != null) TotpSetupCard.IsVisible = false;
             }
