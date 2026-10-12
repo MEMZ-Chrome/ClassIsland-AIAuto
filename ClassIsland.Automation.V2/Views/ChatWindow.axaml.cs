@@ -254,7 +254,6 @@ public partial class ChatWindow : Window
                     ImageStatusTextBlock.Text = $"图片过大（{stream.Length / 1024 / 1024} MB），请压缩到 8 MB 以内";
                 }
                 if (ClearImageButton != null) ClearImageButton.IsVisible = false;
-                ShowToast("图片过大，未加载", isError: true);
                 return;
             }
 
@@ -266,7 +265,6 @@ public partial class ChatWindow : Window
                 _selectedImageBytes = null;
                 if (ImageStatusTextBlock != null) ImageStatusTextBlock.Text = "图片过大，请压缩到 8 MB 以内";
                 if (ClearImageButton != null) ClearImageButton.IsVisible = false;
-                ShowToast("图片过大，未加载", isError: true);
                 return;
             }
 
