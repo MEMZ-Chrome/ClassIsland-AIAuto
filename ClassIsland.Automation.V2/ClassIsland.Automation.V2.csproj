@@ -30,7 +30,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj" />
+    <!-- 显式指向 Core 的 2.x(net8.0) 目标，确保拿到 ClassIsland.Shared 2.x 引用 -->
+    <ProjectReference Include="..\ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj"
+                      SetTargetFramework="TargetFramework=net8.0" />
   </ItemGroup>
 
   <ItemGroup>

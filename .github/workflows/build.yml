@@ -31,7 +31,9 @@ jobs:
       run: dotnet restore ClassIsland.Automation.sln
 
     - name: Build Core
-      run: dotnet build ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj -c Release --no-restore
+      run: |
+        dotnet build ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj -c Release -f net8.0 --no-restore
+        dotnet build ClassIsland.Automation.Core\ClassIsland.Automation.Core.csproj -c Release -f net8.0-windows --no-restore
 
     - name: Build ClassIsland 2.x Plugin
       run: dotnet build ClassIsland.Automation.V2\ClassIsland.Automation.V2.csproj -c Release --no-restore
