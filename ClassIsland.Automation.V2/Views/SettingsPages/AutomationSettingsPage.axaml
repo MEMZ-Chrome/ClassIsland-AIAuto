@@ -33,8 +33,10 @@
         </Border>
 
         <!-- 主设置内容区域 -->
-        <ScrollViewer Name="MainSettingsScrollViewer" Margin="16" IsVisible="True">
-            <StackPanel Spacing="16" MaxWidth="720" HorizontalAlignment="Left">
+        <ScrollViewer Name="MainSettingsScrollViewer" IsVisible="True">
+            <!-- settings-container 由 ClassIsland 主题提供：MaxWidth 960、外边距与间距，
+                 跟随宿主的设置页规范，不要自己写死宽度。 -->
+            <StackPanel Classes="settings-container" Spacing="12">
                 <StackPanel Spacing="2">
                     <TextBlock Text="IslandAgent设置" FontSize="22" FontWeight="SemiBold"/>
                     <TextBlock Text="模型服务、偏好与安全防护" FontSize="12"

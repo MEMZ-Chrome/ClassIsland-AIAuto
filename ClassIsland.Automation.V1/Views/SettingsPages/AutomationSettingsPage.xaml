@@ -40,7 +40,9 @@
 
         <!-- 主设置内容区域 -->
         <ScrollViewer Name="MainSettingsScrollViewer" Margin="16" Visibility="Visible">
-            <StackPanel MaxWidth="720" HorizontalAlignment="Left">
+            <!-- 不限制最大宽度：ClassIsland 1.x 没有统一的设置页宽度约束，
+                 写死宽度会在宽窗口下留下大片空白。 -->
+            <StackPanel HorizontalAlignment="Stretch">
                 <TextBlock Text="IslandAgent设置" FontSize="22" FontWeight="SemiBold"/>
                 <TextBlock Text="模型服务、偏好与安全防护" FontSize="12" Margin="0,2,0,16"
                            Foreground="{DynamicResource MaterialDesignBodyLight}"/>

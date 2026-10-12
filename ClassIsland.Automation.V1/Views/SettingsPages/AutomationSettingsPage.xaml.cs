@@ -453,6 +453,8 @@ public partial class AutomationSettingsPage : SettingsPageBase
             }
             else
             {
+                // 固定单元格宽度让勾选项按列对齐，宽窗口下自动铺开，
+                // 避免卡片右侧出现大片留白。
                 var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
                 foreach (var model in provider.Models)
                 {
@@ -460,7 +462,8 @@ public partial class AutomationSettingsPage : SettingsPageBase
                     {
                         Content = model.Name,
                         IsChecked = model.IsEnabled,
-                        Margin = new Thickness(0, 0, 16, 4)
+                        Width = 210,
+                        Margin = new Thickness(0, 2, 8, 2)
                     };
                     cb.Click += (_, _) =>
                     {

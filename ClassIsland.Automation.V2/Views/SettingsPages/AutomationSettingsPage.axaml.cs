@@ -438,7 +438,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
             }
             mainStack.Children.Add(divider);
 
-            // 模型勾选区域
+            // 模型勾选区域：按列排布，宽窗口下自动铺开，避免卡片右侧大片留白
             var modelsStack = new StackPanel { Spacing = 6 };
             var modelsLabel = new TextBlock
             {
@@ -461,14 +461,21 @@ public partial class AutomationSettingsPage : SettingsPageBase
             }
             else
             {
-                var wrap = new WrapPanel { Orientation = Avalonia.Layout.Orientation.Horizontal };
+                // 用固定宽度的单元格让勾选项按列对齐，宽窗口下自动铺开，
+                // 避免卡片右侧出现大片留白。
+                var wrap = new WrapPanel
+                {
+                    Orientation = Avalonia.Layout.Orientation.Horizontal,
+                    Margin = new Thickness(0, 2, 0, 0)
+                };
                 foreach (var model in provider.Models)
                 {
                     var cb = new CheckBox
                     {
                         Content = model.Name,
                         IsChecked = model.IsEnabled,
-                        Margin = new Thickness(0, 0, 16, 4)
+                        Width = 210,
+                        Margin = new Thickness(0, 2, 8, 2)
                     };
                     cb.IsCheckedChanged += (_, _) =>
                     {
