@@ -26,6 +26,9 @@ public partial class ChatWindow : Window
     private bool _isUpdatingModelCombo = false;
     private bool _isSending = false;
 
+    /// <summary>系统消息之外保留的最大历史条数，超过即从最旧回合截断，防止上下文无限膨胀。</summary>
+    private const int MaxHistoryMessages = 60;
+
     public ChatWindow(IProfileService? profileService = null, IUriNavigationService? uriService = null)
     {
         InitializeComponent();
@@ -40,6 +43,24 @@ public partial class ChatWindow : Window
         if (SelectImageButton != null) SelectImageButton.Click += OnSelectImageClicked;
         if (ClearImageButton != null) ClearImageButton.Click += OnClearImageClicked;
         if (SendButton != null) SendButton.Click += (s, e) => SendCurrentMessage();
+        if (NewSessionButton != null) NewSessionButton.Click += OnNewSessionClicked;
+
+        // 下拉框切换只订阅一次。放在 InitModelSelector 里会随每次外部配置刷新
+        // 叠加一个匿名处理器，用户每切一次模型就多并发执行一轮保存与写盘。
+        if (ModelSelectComboBox != null)
+        {
+            ModelSelectComboBox.SelectionChanged += (s, e) =>
+            {
+                if (_isUpdatingModelCombo) return;
+                if (ModelSelectComboBox.SelectedItem is ActiveModelOption selected)
+                {
+                    _settings.SelectActiveModel(selected.ProviderId, selected.ModelName);
+                    var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
+                    var settingsPath = Path.Combine(configDir, "settings.json");
+                    SaveSettingsToFile(_settings, settingsPath);
+                }
+            };
+        }
 
         // 回车发送，Shift+Enter 换行。
         // 使用 AddHandler 并开启 RoutingStrategies.Tunnel，保证在 TextBox 自身插入换行之前
@@ -120,18 +141,6 @@ public partial class ChatWindow : Window
         {
             _isUpdatingModelCombo = false;
         }
-
-        ModelSelectComboBox.SelectionChanged += (s, e) =>
-        {
-            if (_isUpdatingModelCombo) return;
-            if (ModelSelectComboBox.SelectedItem is ActiveModelOption selected)
-            {
-                _settings.SelectActiveModel(selected.ProviderId, selected.ModelName);
-                var configDir = Plugin.Instance?.PluginConfigFolder ?? AppContext.BaseDirectory;
-                var settingsPath = Path.Combine(configDir, "settings.json");
-                SaveSettingsToFile(_settings, settingsPath);
-            }
-        };
     }
 
     private PluginSettings LoadPluginSettings()
@@ -381,6 +390,10 @@ public partial class ChatWindow : Window
             });
         }
 
+        // 先截断过长的历史再发请求，否则对话轮数一多必然撞上下文长度限制
+        TrimConversationHistory();
+        var historyBaseline = _conversationMessages.Count;
+
         var userMessage = new JsonObject
         {
             ["role"] = "user",
@@ -439,6 +452,12 @@ public partial class ChatWindow : Window
                         assistantMsg.AddToolBadge(statusText);
                         ScrollToBottom();
                     });
+                },
+                onFirstResponse: () =>
+                {
+                    // 模型已在首轮拿到图片，立即把历史里的 Base64 换成占位文本。
+                    // 否则同一回合内每轮 ReAct 请求都会重新上传约 11MB 的编码数据。
+                    StripImageFromHistory(userMessageIndex, textContent);
                 });
 
             assistantMsg.IsThinking = false;
@@ -450,22 +469,67 @@ public partial class ChatWindow : Window
             assistantMsg.IsThinking = false;
             assistantMsg.Content = $"请求处理失败: {ex.Message}";
             ScrollToBottom();
+
+            // 回滚本次失败回合写入的全部消息。失败时用户消息留在历史里，
+            // 重试后会出现连续两条 user 消息，严格交替校验的端点会直接返回 400。
+            while (_conversationMessages.Count > historyBaseline)
+            {
+                _conversationMessages.RemoveAt(_conversationMessages.Count - 1);
+            }
         }
         finally
         {
-            // 请求已发出，现在把历史里的 base64 图片换成文字占位。
-            // 否则这张图会一直留在 _conversationMessages 中，之后每一次 ReAct 请求
-            // 以及之后所有轮次都会 DeepClone 并重新上传，持续放大流量与 token 费用。
-            if (hadImage && userMessageIndex >= 0 && userMessageIndex < _conversationMessages.Count)
+            // 兜底：首轮响应回调未覆盖到的路径（如模型直出异常前）也不把大图留在历史里。
+            if (hadImage)
             {
-                _conversationMessages[userMessageIndex] = new JsonObject
-                {
-                    ["role"] = "user",
-                    ["content"] = $"{textContent}（用户上传了一张课表图片）"
-                };
+                StripImageFromHistory(userMessageIndex, textContent);
             }
 
             if (SendButton != null) SendButton.IsEnabled = true;
         }
+    }
+
+    /// <summary>把历史中指定下标的带图 user 消息替换为纯文本占位，避免图片被反复上传。</summary>
+    private void StripImageFromHistory(int userMessageIndex, string textContent)
+    {
+        if (userMessageIndex < 0 || userMessageIndex >= _conversationMessages.Count) return;
+        if (_conversationMessages[userMessageIndex]?["content"] is JsonArray)
+        {
+            _conversationMessages[userMessageIndex] = new JsonObject
+            {
+                ["role"] = "user",
+                ["content"] = $"{textContent}（用户上传了一张课表图片）"
+            };
+        }
+    }
+
+    /// <summary>按整回合截断历史，保证截断后第一条仍是 user 消息，不产生悬挂的 tool 应答。</summary>
+    private void TrimConversationHistory()
+    {
+        while (_conversationMessages.Count > MaxHistoryMessages)
+        {
+            // 保留起点 = 第二个 user 消息（索引 0 是 system），
+            // 删除它之前的所有内容即最旧的一个完整回合（含其 assistant/tool 链）。
+            int keep = 2;
+            while (keep < _conversationMessages.Count
+                   && _conversationMessages[keep]?["role"]?.GetValue<string>() != "user")
+            {
+                keep++;
+            }
+
+            int removeCount = keep - 1;
+            if (removeCount <= 0) break;
+            for (int i = 0; i < removeCount; i++)
+            {
+                _conversationMessages.RemoveAt(1);
+            }
+        }
+    }
+
+    private void OnNewSessionClicked(object? sender, RoutedEventArgs e)
+    {
+        // 发送过程中清空会与进行中的 ReAct 循环竞争 _conversationMessages
+        if (_isSending) return;
+        InitConversation();
     }
 }

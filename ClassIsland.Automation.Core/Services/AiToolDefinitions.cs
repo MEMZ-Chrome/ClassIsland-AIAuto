@@ -337,7 +337,7 @@ public static class AiToolDefinitions
                 ["function"] = new JsonObject
                 {
                     ["name"] = "update_plugin_settings",
-                    ["description"] = "修改 IslandAgent 插件自身的设置并立即保存生效。可新增/修改/删除 AI 供应商，增删与启停模型，切换当前使用的模型，开关长期记忆与命令行权限，改写自定义提示词与长期记忆内容。当用户说“添加一个 xxx 供应商”“把模型换成 xxx”“关掉记忆”“记住我的提示词”时调用。",
+                    ["description"] = "修改 IslandAgent 插件自身的设置并立即保存生效。可新增/修改/删除 AI 供应商，增删与启停模型，切换当前使用的模型，开关长期记忆与命令行权限，改写自定义提示词与长期记忆内容。当用户说“添加一个 xxx 供应商”“把模型换成 xxx”“关掉记忆”“记住我的提示词”时调用。注意：若用户启用了密码/TOTP 访问保护，供应商增删改、自定义提示词、长期记忆与命令行权限属于敏感设置，会被拒绝执行，应提示用户前往【设置 -> IslandAgent设置】手动操作。",
                     ["parameters"] = new JsonObject
                     {
                         ["type"] = "object",

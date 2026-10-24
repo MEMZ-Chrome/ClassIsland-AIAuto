@@ -102,6 +102,10 @@ public partial class AutomationSettingsPage : SettingsPageBase
 
                 _settings.MaxToolIterations = updated.MaxToolIterations;
                 if (MaxToolIterationsNumeric != null) MaxToolIterationsNumeric.Value = updated.EffectiveMaxToolIterations;
+
+                // 供应商列表可能被 AI 在聊天窗口里增删改过，必须重建卡片，
+                // 否则页面停留在过时快照上，用户在旧卡片上编辑/删除极易造成脏写冲突。
+                RenderProvidersList();
             }
             finally
             {
@@ -683,6 +687,17 @@ public partial class AutomationSettingsPage : SettingsPageBase
         if (string.IsNullOrWhiteSpace(baseUrl))
         {
             ShowToast("请输入 API 地址 (Base URL)！", isError: true);
+            return;
+        }
+
+        // 同名供应商会让按名解析永远只命中第一个，第二个在 AI 工具视角下无法访问
+        bool duplicateName = _dialogEditingProvider == null
+            ? _settings.Providers.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            : _settings.Providers.Any(p => p != _dialogEditingProvider
+                                           && p.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (duplicateName)
+        {
+            ShowToast($"已存在名为「{name}」的供应商，请换一个别名！", isError: true);
             return;
         }
 
