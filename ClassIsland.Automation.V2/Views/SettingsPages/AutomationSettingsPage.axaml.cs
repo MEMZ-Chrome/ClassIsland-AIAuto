@@ -100,6 +100,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 _settings.IsCommandExecutionEnabled = updated.IsCommandExecutionEnabled;
                 if (IsCommandExecutionEnabledCheckBox != null) IsCommandExecutionEnabledCheckBox.IsChecked = updated.IsCommandExecutionEnabled;
 
+                _settings.IsMultiSessionEnabled = updated.IsMultiSessionEnabled;
+                if (IsMultiSessionEnabledCheckBox != null) IsMultiSessionEnabledCheckBox.IsChecked = updated.IsMultiSessionEnabled;
+
+                _settings.IsNewSessionOnOpenEnabled = updated.IsNewSessionOnOpenEnabled;
+                if (NewSessionOnOpenCheckBox != null) NewSessionOnOpenCheckBox.IsChecked = updated.IsNewSessionOnOpenEnabled;
+
                 _settings.MaxToolIterations = updated.MaxToolIterations;
                 if (MaxToolIterationsNumeric != null) MaxToolIterationsNumeric.Value = updated.EffectiveMaxToolIterations;
 
@@ -265,6 +271,18 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             IsCommandExecutionEnabledCheckBox.IsChecked = _settings.IsCommandExecutionEnabled;
             IsCommandExecutionEnabledCheckBox.IsCheckedChanged += (_, _) => AutoSave();
+        }
+
+        if (IsMultiSessionEnabledCheckBox != null)
+        {
+            IsMultiSessionEnabledCheckBox.IsChecked = _settings.IsMultiSessionEnabled;
+            IsMultiSessionEnabledCheckBox.IsCheckedChanged += (_, _) => AutoSave();
+        }
+
+        if (NewSessionOnOpenCheckBox != null)
+        {
+            NewSessionOnOpenCheckBox.IsChecked = _settings.IsNewSessionOnOpenEnabled;
+            NewSessionOnOpenCheckBox.IsCheckedChanged += (_, _) => AutoSave();
         }
 
         if (MaxToolIterationsNumeric != null)
@@ -746,6 +764,8 @@ public partial class AutomationSettingsPage : SettingsPageBase
     {
         _settings.IsMemoryEnabled = IsMemoryEnabledCheckBox?.IsChecked ?? true;
         _settings.IsCommandExecutionEnabled = IsCommandExecutionEnabledCheckBox?.IsChecked ?? false;
+        _settings.IsMultiSessionEnabled = IsMultiSessionEnabledCheckBox?.IsChecked ?? true;
+        _settings.IsNewSessionOnOpenEnabled = NewSessionOnOpenCheckBox?.IsChecked ?? false;
         var iterations = MaxToolIterationsNumeric?.Value;
         _settings.MaxToolIterations = iterations.HasValue
             ? (int)Math.Clamp(iterations.Value, 1m, 50m)

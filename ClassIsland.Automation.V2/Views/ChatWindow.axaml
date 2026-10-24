@@ -7,7 +7,46 @@
         x:Class="ClassIsland.Automation.V2.Views.ChatWindow"
         Title="IslandAgent" Width="640" Height="720"
         WindowStartupLocation="CenterScreen">
-    <Grid RowDefinitions="Auto, *, Auto, Auto" Margin="16">
+
+    <Window.Styles>
+        <!-- 会话列表条目（由代码构建，样式集中在这里定义以便跟随主题切换） -->
+        <Style Selector="Border.sessionItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+        <Style Selector="Border.sessionItem.active">
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.sessionTitle">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TextBlock.sessionTitle.active">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+    </Window.Styles>
+
+    <Grid ColumnDefinitions="Auto, *" Margin="16">
+        <!-- 会话列表侧栏（仅多会话模式显示，可折叠） -->
+        <Border Name="SessionSidebarBorder" Width="180" Margin="0,0,12,0" IsVisible="False"
+                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1" CornerRadius="8" Padding="8">
+            <Grid RowDefinitions="Auto, *">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="6" Margin="0,0,0,8">
+                    <TextBlock Text="会话" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Button Name="SidebarNewSessionButton" Content="＋ 新建" FontSize="12" Padding="8,3"/>
+                </StackPanel>
+                <ScrollViewer Grid.Row="1">
+                    <StackPanel Name="SessionListStackPanel"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="1" RowDefinitions="Auto, *, Auto, Auto">
         <!-- 头部说明、模型选择与状态 -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,12">
             <StackPanel Spacing="2">
@@ -18,6 +57,7 @@
 
             <!-- 对话界面模型快速切换下拉框 -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button Name="SidebarToggleButton" Content="会话列表" FontSize="12" Padding="12,4" VerticalAlignment="Center" IsVisible="False"/>
                 <Button Name="NewSessionButton" Content="新建会话" FontSize="12" Padding="12,4" VerticalAlignment="Center"/>
                 <TextBlock Text="当前模型:" VerticalAlignment="Center" FontSize="12"
                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
@@ -123,6 +163,7 @@
                      VerticalContentAlignment="Center"/>
             <Button Name="SendButton" Grid.Column="1" Content="发送" Margin="8,0,0,0" Classes="accent"
                     VerticalAlignment="Bottom"/>
+        </Grid>
         </Grid>
     </Grid>
 </Window>
