@@ -109,6 +109,9 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 _settings.IsAiSessionTitleEnabled = updated.IsAiSessionTitleEnabled;
                 if (AiSessionTitleCheckBox != null) AiSessionTitleCheckBox.IsChecked = updated.IsAiSessionTitleEnabled;
 
+                _settings.IsBackgroundTaskNotificationEnabled = updated.IsBackgroundTaskNotificationEnabled;
+                if (BackgroundTaskNotificationCheckBox != null) BackgroundTaskNotificationCheckBox.IsChecked = updated.IsBackgroundTaskNotificationEnabled;
+
                 _settings.MaxToolIterations = updated.MaxToolIterations;
                 if (MaxToolIterationsNumeric != null) MaxToolIterationsNumeric.Value = updated.EffectiveMaxToolIterations;
 
@@ -292,6 +295,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             AiSessionTitleCheckBox.IsChecked = _settings.IsAiSessionTitleEnabled;
             AiSessionTitleCheckBox.IsCheckedChanged += (_, _) => AutoSave();
+        }
+
+        if (BackgroundTaskNotificationCheckBox != null)
+        {
+            BackgroundTaskNotificationCheckBox.IsChecked = _settings.IsBackgroundTaskNotificationEnabled;
+            BackgroundTaskNotificationCheckBox.IsCheckedChanged += (_, _) => AutoSave();
         }
 
         if (MaxToolIterationsNumeric != null)
@@ -776,6 +785,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         _settings.IsMultiSessionEnabled = IsMultiSessionEnabledCheckBox?.IsChecked ?? true;
         _settings.IsNewSessionOnOpenEnabled = NewSessionOnOpenCheckBox?.IsChecked ?? false;
         _settings.IsAiSessionTitleEnabled = AiSessionTitleCheckBox?.IsChecked ?? false;
+        _settings.IsBackgroundTaskNotificationEnabled = BackgroundTaskNotificationCheckBox?.IsChecked ?? false;
         var iterations = MaxToolIterationsNumeric?.Value;
         _settings.MaxToolIterations = iterations.HasValue
             ? (int)Math.Clamp(iterations.Value, 1m, 50m)
