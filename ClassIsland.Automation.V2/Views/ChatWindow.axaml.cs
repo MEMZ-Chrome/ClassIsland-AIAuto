@@ -55,6 +55,12 @@ public partial class ChatWindow : Window
         if (SidebarToggleButton != null) SidebarToggleButton.Click += OnSidebarExpandClicked;
         if (SidebarCollapseButton != null) SidebarCollapseButton.Click += OnSidebarCollapseClicked;
 
+        // 整窗接收拖拽：图片作为附件，文本文件内容填进输入框
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragOverEvent, OnWindowDragOver);
+        AddHandler(DragDrop.DragLeaveEvent, OnWindowDragLeave);
+        AddHandler(DragDrop.DropEvent, OnWindowDrop);
+
         // 下拉框切换只订阅一次。放在 InitModelSelector 里会随每次外部配置刷新
         // 叠加一个匿名处理器，用户每切一次模型就多并发执行一轮保存与写盘。
         if (ModelSelectComboBox != null)
@@ -362,7 +368,22 @@ public partial class ChatWindow : Window
         ScrollToBottom();
     }
 
-    // ==================== 图片选择 ====================
+    // ==================== 图片选择 / 拖拽导入 ====================
+
+    private static readonly string[] ImageExtensions = { ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif" };
+
+    private static readonly string[] TextExtensions =
+    {
+        ".txt", ".md", ".markdown", ".json", ".csv", ".xml", ".yml", ".yaml", ".log", ".cs", ".xaml", ".axaml"
+    };
+
+    /// <summary>文本文件直接塞进输入框，体积上限 256 KB，避免把超长日志灌进上下文。</summary>
+    private const long MaxTextBytes = 256 * 1024;
+
+    private void SetImageStatus(string text)
+    {
+        if (ImageStatusTextBlock != null) ImageStatusTextBlock.Text = text;
+    }
 
     private async void OnSelectImageClicked(object? sender, RoutedEventArgs e)
     {
@@ -381,54 +402,146 @@ public partial class ChatWindow : Window
 
         if (files.Count > 0)
         {
-            var file = files[0];
-            await using var stream = await file.OpenReadAsync();
-
-            // 上限 8 MB。图片会被 Base64 后随每次请求发送（体积再涨约 1/3），
-            // 不设限的话一张高分辨率图就可能撑爆请求体或直接 OOM。
-            const long maxBytes = 8 * 1024 * 1024;
-            if (stream.CanSeek && stream.Length > maxBytes)
-            {
-                _selectedImageBytes = null;
-                if (ImageStatusTextBlock != null)
-                {
-                    ImageStatusTextBlock.Text = $"图片过大（{stream.Length / 1024 / 1024} MB），请压缩到 8 MB 以内";
-                }
-                if (ClearImageButton != null) ClearImageButton.IsVisible = false;
-                return;
-            }
-
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms);
-
-            if (ms.Length > maxBytes)
-            {
-                _selectedImageBytes = null;
-                if (ImageStatusTextBlock != null) ImageStatusTextBlock.Text = "图片过大，请压缩到 8 MB 以内";
-                if (ClearImageButton != null) ClearImageButton.IsVisible = false;
-                return;
-            }
-
-            _selectedImageBytes = ms.ToArray();
-
-            var ext = Path.GetExtension(file.Name).ToLowerInvariant();
-            _imageMimeType = ext switch
-            {
-                ".jpg" or ".jpeg" => "image/jpeg",
-                ".webp" => "image/webp",
-                _ => "image/png"
-            };
-
-            if (ImageStatusTextBlock != null) ImageStatusTextBlock.Text = $"已选择: {file.Name}";
-            if (ClearImageButton != null) ClearImageButton.IsVisible = true;
+            await AttachImageAsync(files[0]);
         }
+    }
+
+    /// <summary>
+    /// 把图片读入待发送区。上限 8 MB：图片会被 Base64 后随每次请求发送（体积再涨约 1/3），
+    /// 不设限的话一张高分辨率图就可能撑爆请求体或直接 OOM。
+    /// </summary>
+    private async Task<bool> AttachImageAsync(IStorageFile file)
+    {
+        const long maxBytes = 8 * 1024 * 1024;
+
+        await using var stream = await file.OpenReadAsync();
+        if (stream.CanSeek && stream.Length > maxBytes)
+        {
+            _selectedImageBytes = null;
+            SetImageStatus($"图片过大（{stream.Length / 1024 / 1024} MB），请压缩到 8 MB 以内");
+            if (ClearImageButton != null) ClearImageButton.IsVisible = false;
+            return false;
+        }
+
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+
+        if (ms.Length > maxBytes)
+        {
+            _selectedImageBytes = null;
+            SetImageStatus("图片过大，请压缩到 8 MB 以内");
+            if (ClearImageButton != null) ClearImageButton.IsVisible = false;
+            return false;
+        }
+
+        _selectedImageBytes = ms.ToArray();
+
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        _imageMimeType = ext switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            _ => "image/png"
+        };
+
+        SetImageStatus($"已选择: {file.Name}");
+        if (ClearImageButton != null) ClearImageButton.IsVisible = true;
+        return true;
     }
 
     private void OnClearImageClicked(object? sender, RoutedEventArgs? e)
     {
         _selectedImageBytes = null;
-        if (ImageStatusTextBlock != null) ImageStatusTextBlock.Text = "未选择图片";
+        SetImageStatus("未选择图片，可直接把文件拖进窗口");
         if (ClearImageButton != null) ClearImageButton.IsVisible = false;
+    }
+
+    // ---- 拖拽导入 ----
+
+    private void OnWindowDragOver(object? sender, DragEventArgs e)
+    {
+        var accepts = e.Data.Contains(DataFormats.Files);
+        e.DragEffects = accepts ? DragDropEffects.Copy : DragDropEffects.None;
+        if (DropOverlay != null) DropOverlay.IsVisible = accepts;
+        e.Handled = true;
+    }
+
+    private void OnWindowDragLeave(object? sender, DragEventArgs e)
+    {
+        if (DropOverlay != null) DropOverlay.IsVisible = false;
+    }
+
+    private async void OnWindowDrop(object? sender, DragEventArgs e)
+    {
+        if (DropOverlay != null) DropOverlay.IsVisible = false;
+
+        var items = e.Data.GetFiles()?.ToList();
+        if (items == null || items.Count == 0) return;
+
+        var files = items.OfType<IStorageFile>().ToList();
+        if (files.Count == 0)
+        {
+            SetImageStatus("文件夹暂不支持，请拖入单个文件");
+            return;
+        }
+
+        if (files.Count > 1)
+        {
+            SetImageStatus($"一次只能拖入一个文件（收到 {files.Count} 个）");
+            return;
+        }
+
+        var file = files[0];
+        var ext = Path.GetExtension(file.Name).ToLowerInvariant();
+        try
+        {
+            if (ImageExtensions.Contains(ext))
+            {
+                await AttachImageAsync(file);
+                return;
+            }
+            if (TextExtensions.Contains(ext))
+            {
+                await InsertTextFileAsync(file);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            SetImageStatus($"读取文件失败：{ex.Message}");
+            return;
+        }
+
+        SetImageStatus($"不支持的类型「{(string.IsNullOrEmpty(ext) ? "无扩展名" : ext)}」，可拖入图片或文本文件");
+    }
+
+    private async Task InsertTextFileAsync(IStorageFile file)
+    {
+        await using var stream = await file.OpenReadAsync();
+        if (stream.CanSeek && stream.Length > MaxTextBytes)
+        {
+            SetImageStatus($"文件超过 256 KB（{stream.Length / 1024} KB），请截取需要的部分");
+            return;
+        }
+
+        using var reader = new StreamReader(stream);
+        var content = await reader.ReadToEndAsync();
+        if (content.Length > MaxTextBytes)
+        {
+            SetImageStatus("文件超过 256 KB，请截取需要的部分");
+            return;
+        }
+
+        var block = $"【文件 {file.Name}】\n{content.Trim()}";
+        if (InputTextBox != null)
+        {
+            var existing = InputTextBox.Text ?? "";
+            var merged = string.IsNullOrWhiteSpace(existing) ? block : existing.TrimEnd() + "\n\n" + block;
+            InputTextBox.Text = merged;
+            InputTextBox.CaretIndex = merged.Length;
+            InputTextBox.Focus();
+        }
+        SetImageStatus($"已把「{file.Name}」的内容填进输入框");
     }
 
     // ==================== 会话侧栏 ====================
