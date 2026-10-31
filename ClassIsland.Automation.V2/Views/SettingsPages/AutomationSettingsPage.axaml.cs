@@ -103,6 +103,9 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 _settings.IsMultiSessionEnabled = updated.IsMultiSessionEnabled;
                 if (IsMultiSessionEnabledCheckBox != null) IsMultiSessionEnabledCheckBox.IsChecked = updated.IsMultiSessionEnabled;
 
+                _settings.IsSessionSidebarExpandedByDefault = updated.IsSessionSidebarExpandedByDefault;
+                if (SessionSidebarExpandedCheckBox != null) SessionSidebarExpandedCheckBox.IsChecked = updated.IsSessionSidebarExpandedByDefault;
+
                 _settings.IsNewSessionOnOpenEnabled = updated.IsNewSessionOnOpenEnabled;
                 if (NewSessionOnOpenCheckBox != null) NewSessionOnOpenCheckBox.IsChecked = updated.IsNewSessionOnOpenEnabled;
 
@@ -283,6 +286,12 @@ public partial class AutomationSettingsPage : SettingsPageBase
         {
             IsMultiSessionEnabledCheckBox.IsChecked = _settings.IsMultiSessionEnabled;
             IsMultiSessionEnabledCheckBox.IsCheckedChanged += (_, _) => AutoSave();
+        }
+
+        if (SessionSidebarExpandedCheckBox != null)
+        {
+            SessionSidebarExpandedCheckBox.IsChecked = _settings.IsSessionSidebarExpandedByDefault;
+            SessionSidebarExpandedCheckBox.IsCheckedChanged += (_, _) => AutoSave();
         }
 
         if (NewSessionOnOpenCheckBox != null)
@@ -783,6 +792,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         _settings.IsMemoryEnabled = IsMemoryEnabledCheckBox?.IsChecked ?? true;
         _settings.IsCommandExecutionEnabled = IsCommandExecutionEnabledCheckBox?.IsChecked ?? false;
         _settings.IsMultiSessionEnabled = IsMultiSessionEnabledCheckBox?.IsChecked ?? true;
+        _settings.IsSessionSidebarExpandedByDefault = SessionSidebarExpandedCheckBox?.IsChecked ?? true;
         _settings.IsNewSessionOnOpenEnabled = NewSessionOnOpenCheckBox?.IsChecked ?? false;
         _settings.IsAiSessionTitleEnabled = AiSessionTitleCheckBox?.IsChecked ?? false;
         _settings.IsBackgroundTaskNotificationEnabled = BackgroundTaskNotificationCheckBox?.IsChecked ?? false;
