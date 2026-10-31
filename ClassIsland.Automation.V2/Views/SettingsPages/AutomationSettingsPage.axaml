@@ -5,6 +5,33 @@
                      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                      mc:Ignorable="d">
+    <ci:SettingsPageBase.Styles>
+        <!-- 预置模板胶囊 -->
+        <Style Selector="Button.chip">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="12"/>
+            <Setter Property="Padding" Value="11,5"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Margin" Value="0,0,6,6"/>
+        </Style>
+        <Style Selector="Button.chip:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+        </Style>
+        <!-- 无边框图标按钮 -->
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.ghost:pointerover">
+            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+        </Style>
+    </ci:SettingsPageBase.Styles>
     <Grid>
         <!-- 密码/TOTP 访问锁定遮罩层 -->
         <Border Name="LockOverlayBorder" IsVisible="False"
@@ -206,79 +233,95 @@
         </ScrollViewer>
 
         <!-- 供应商 添加/编辑 模态弹窗遮罩层 -->
-        <Grid Name="ProviderDialogOverlay" IsVisible="False" Background="#99000000">
+        <Grid Name="ProviderDialogOverlay" IsVisible="False" Background="#8C000000">
             <Border Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
-                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1" CornerRadius="12" Padding="24"
-                    Width="480" MaxHeight="620"
+                    CornerRadius="16" Width="520" MaxHeight="660"
+                    BoxShadow="0 10 32 0 #40000000"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
-                <Grid RowDefinitions="Auto, *">
-                    <!-- 弹窗标题与关闭 -->
-                    <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,16">
-                        <TextBlock Name="DialogTitleTextBlock" Text="添加供应商" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Name="DialogCloseButton" Grid.Column="1" Content="关闭" VerticalAlignment="Center"/>
+                <Grid RowDefinitions="Auto, Auto, *, Auto">
+                    <!-- 标题区：标题 + 一句话说明，右上角关闭 -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="22,18,14,14">
+                        <StackPanel Spacing="3">
+                            <TextBlock Name="DialogTitleTextBlock" Text="添加供应商" FontSize="17" FontWeight="SemiBold"/>
+                            <TextBlock Name="DialogSubtitleTextBlock" FontSize="12" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       Text="填好别名、地址和密钥就能用。预置模板只填地址，密钥要自己填。"/>
+                        </StackPanel>
+                        <Button Name="DialogCloseButton" Grid.Column="1" Classes="ghost" VerticalAlignment="Top"
+                                ToolTip.Tip="关闭">
+                            <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                  Width="10" Height="10" Stretch="Uniform"
+                                  Fill="{DynamicResource TextFillColorSecondaryBrush}"/>
+                        </Button>
                     </Grid>
 
-                    <!-- 弹窗滚动表单内容 -->
-                    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Spacing="14">
-                            <!-- 预置快捷填入 -->
+                    <Border Grid.Row="1" Height="1" Background="{DynamicResource CardStrokeColorDefaultBrush}"/>
+
+                    <!-- 表单区 -->
+                    <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Spacing="14" Margin="22,16,22,8">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="预置模板" FontSize="12"
+                                <TextBlock Text="快速填充" FontSize="11"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                 <WrapPanel Name="PresetButtonsWrapPanel" Orientation="Horizontal"/>
                             </StackPanel>
 
-                            <!-- 供应商别名 -->
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="供应商别名" FontWeight="SemiBold"/>
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="供应商别名" FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                 <TextBox Name="DialogNameTextBox" Watermark="例如：DeepSeek"/>
                             </StackPanel>
 
-                            <!-- API 地址 -->
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="API 地址" FontWeight="SemiBold"/>
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="API 地址" FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                 <TextBox Name="DialogBaseUrlTextBox" Watermark="https://api.deepseek.com"/>
+                                <TextBlock Text="可以不写 /v1，请求失败时会自动补上再试一次。" FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
                             </StackPanel>
 
-                            <!-- API 密钥 -->
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="API 密钥" FontWeight="SemiBold"/>
-                                <TextBox Name="DialogApiKeyTextBox" PasswordChar="*"/>
+                            <StackPanel Spacing="5">
+                                <TextBlock Text="API 密钥" FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                <TextBox Name="DialogApiKeyTextBox" PasswordChar="*" Watermark="sk-..."/>
                             </StackPanel>
 
-                            <!-- 模型管理 -->
-                            <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="8" Padding="14">
-                                <StackPanel Spacing="10">
-                                    <Grid ColumnDefinitions="*, Auto">
-                                        <TextBlock Text="模型列表" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                        <Button Name="DialogFetchModelsButton" Grid.Column="1" Content="自动获取"/>
-                                    </Grid>
+                            <!-- 模型：标题行 + 手动添加行 + 列表，列表不再套第二层边框 -->
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="模型" FontSize="11" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                    <Button Name="DialogFetchModelsButton" Grid.Column="1" Content="从接口获取"/>
+                                </Grid>
 
-                                    <!-- 手动添加模型 -->
-                                    <Grid ColumnDefinitions="*, Auto">
-                                        <TextBox Name="DialogNewModelTextBox" Watermark="手动输入模型名称"/>
-                                        <Button Name="DialogAddModelButton" Grid.Column="1" Margin="8,0,0,0" Content="添加"/>
-                                    </Grid>
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBox Name="DialogNewModelTextBox" Watermark="或手动输入模型名"/>
+                                    <Button Name="DialogAddModelButton" Grid.Column="1" Margin="8,0,0,0" Content="添加"/>
+                                </Grid>
 
-                                    <!-- 弹窗中的模型列表展示 -->
-                                    <Border Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
-                                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="1" CornerRadius="6" Padding="6" MaxHeight="160">
-                                        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-                                            <StackPanel Name="DialogModelsContainer" Spacing="4"/>
-                                        </ScrollViewer>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- 底部保存/取消按钮 -->
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,4,0,0">
-                                <Button Name="DialogCancelButton" Content="取消"/>
-                                <Button Name="DialogSaveButton" Content="保存" Classes="accent"/>
+                                <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
+                                        CornerRadius="8" Padding="6,4" MaxHeight="150">
+                                    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                                        <StackPanel Name="DialogModelsContainer" Spacing="2"/>
+                                    </ScrollViewer>
+                                </Border>
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
+
+                    <!-- 底部操作区：错误提示在左，按钮固定在右下角，不随内容滚动 -->
+                    <Border Grid.Row="3" BorderThickness="0,1,0,0" Padding="22,12,20,14"
+                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Name="DialogErrorTextBlock" IsVisible="False" FontSize="11.5"
+                                       TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"
+                                       Foreground="{DynamicResource SystemFillColorCriticalBrush}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                <Button Name="DialogCancelButton" Content="取消"/>
+                                <Button Name="DialogSaveButton" Content="保存" Classes="accent"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
                 </Grid>
             </Border>
         </Grid>
