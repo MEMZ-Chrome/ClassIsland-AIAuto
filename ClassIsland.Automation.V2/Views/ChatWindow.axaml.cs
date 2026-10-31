@@ -6,8 +6,10 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Shapes = Avalonia.Controls.Shapes;
 using ClassIsland.Automation.Core.Models;
 using ClassIsland.Automation.Core.Services;
 using ClassIsland.Core.Abstractions.Services;
@@ -435,44 +437,127 @@ public partial class ChatWindow : Window
         Manager.CreateNewSession();
     }
 
+    // 会话列表用的图标（Material Design 24×24 路径）
+    private const string IconChatFilled = "M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z";
+    private const string IconChatOutline = "M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z";
+    private const string IconClose = "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z";
+
     private void RenderSessionList()
     {
         if (SessionListStackPanel == null) return;
         SessionListStackPanel.Children.Clear();
 
-        foreach (var session in Manager.Sessions.OrderByDescending(s => s.LastActiveAt))
+        var sessions = Manager.Sessions.OrderByDescending(s => s.LastActiveAt).ToList();
+
+        if (SessionCountText != null) SessionCountText.Text = sessions.Count.ToString();
+        if (SessionCountBadge != null) SessionCountBadge.IsVisible = sessions.Count > 0;
+        if (SessionEmptyState != null) SessionEmptyState.IsVisible = sessions.Count == 0;
+
+        foreach (var session in sessions)
         {
             var isActive = session.Id == Manager.ActiveSessionId;
             var captured = session; // 避免闭包捕获循环变量
 
-            var title = new TextBlock();
+            // 左侧选中指示条：始终占位，避免切换时文字左右跳动
+            var indicator = new Border
+            {
+                Width = 3,
+                Height = 26,
+                CornerRadius = new CornerRadius(2),
+                Margin = new Thickness(0, 0, 8, 0),
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+            indicator.Classes.Add("sessionBar");
+            if (isActive) indicator.Classes.Add("active");
+
+            // 会话图标：选中实心 + 强调色，未选中描边 + 次要色
+            var icon = new Shapes.Path
+            {
+                Data = Geometry.Parse(isActive ? IconChatFilled : IconChatOutline),
+                Width = 14,
+                Height = 14,
+                Stretch = Stretch.Uniform,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0),
+                Opacity = isActive ? 1.0 : 0.7
+            };
+            icon.Classes.Add("sessionIcon");
+            if (isActive) icon.Classes.Add("active");
+
+            var title = new TextBlock { Text = session.Title };
             title.Classes.Add("sessionTitle");
             if (isActive) title.Classes.Add("active");
-            title.Text = session.Title;
-            ToolTip.SetTip(title, $"{session.Title}（{session.LastActiveAt:MM-dd HH:mm}）");
-            title.Cursor = new Cursor(StandardCursorType.Hand);
-            title.PointerPressed += (_, _) => Manager.ActivateSession(captured.Id);
 
-            var deleteButton = new Button
+            var time = new TextBlock { Text = FormatSessionTime(session.LastActiveAt) };
+            time.Classes.Add("sessionTime");
+
+            var texts = new StackPanel
             {
-                Content = "✕",
-                FontSize = 11,
-                Padding = new Thickness(6, 2)
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Spacing = 1
             };
-            deleteButton.Click += (_, _) => Manager.DeleteSession(captured.Id);
+            texts.Children.Add(title);
+            texts.Children.Add(time);
 
-            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*, Auto") };
-            Grid.SetColumn(deleteButton, 1);
-            grid.Children.Add(title);
-            grid.Children.Add(deleteButton);
+            // 删除：图标按钮，平时低对比，悬停浮现
+            var closeIcon = new Shapes.Path
+            {
+                Data = Geometry.Parse(IconClose),
+                Width = 8,
+                Height = 8,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+            };
+            closeIcon.Classes.Add("sessionDeleteIcon");
 
-            var border = new Border();
+            var deleteHost = new Border
+            {
+                Width = 22,
+                Height = 22,
+                Cursor = new Cursor(StandardCursorType.Hand),
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Child = closeIcon
+            };
+            deleteHost.Classes.Add("sessionDelete");
+            ToolTip.SetTip(deleteHost, "删除会话");
+            deleteHost.PointerPressed += (_, e) =>
+            {
+                e.Handled = true; // 阻止冒泡，否则会顺带切换会话
+                Manager.DeleteSession(captured.Id);
+            };
+
+            var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto, Auto, *, Auto") };
+            Grid.SetColumn(indicator, 0);
+            Grid.SetColumn(icon, 1);
+            Grid.SetColumn(texts, 2);
+            Grid.SetColumn(deleteHost, 3);
+            grid.Children.Add(indicator);
+            grid.Children.Add(icon);
+            grid.Children.Add(texts);
+            grid.Children.Add(deleteHost);
+
+            var border = new Border { Cursor = new Cursor(StandardCursorType.Hand), Child = grid };
             border.Classes.Add("sessionItem");
             if (isActive) border.Classes.Add("active");
-            border.Child = grid;
+            ToolTip.SetTip(border, $"{session.Title}（{session.LastActiveAt:MM-dd HH:mm}）");
+            border.PointerPressed += (_, _) => Manager.ActivateSession(captured.Id);
 
             SessionListStackPanel.Children.Add(border);
         }
+    }
+
+    /// <summary>会话列表里的相对时间：刚刚 / N 分钟前 / 今天 HH:mm / 昨天 HH:mm / N 天前 / MM-dd。</summary>
+    private static string FormatSessionTime(DateTime time)
+    {
+        var now = DateTime.Now;
+        var delta = now - time;
+        if (delta.TotalSeconds < 60) return "刚刚";
+        if (delta.TotalMinutes < 60) return $"{(int)delta.TotalMinutes} 分钟前";
+        if (time.Date == now.Date) return time.ToString("今天 HH:mm");
+        if (time.Date == now.Date.AddDays(-1)) return time.ToString("昨天 HH:mm");
+        if (delta.TotalDays < 7) return $"{(int)delta.TotalDays} 天前";
+        return time.ToString("MM-dd");
     }
 
     /// <summary>多会话模式：显示侧栏与「会话列表」开关、隐藏顶部新建按钮；单会话模式反之。</summary>
