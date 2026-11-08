@@ -387,22 +387,32 @@ public partial class ChatWindow : Window
 
     private async void OnSelectImageClicked(object? sender, RoutedEventArgs e)
     {
-        var topLevel = GetTopLevel(this);
-        if (topLevel == null) return;
-
-        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        try
         {
-            Title = "选择课表图片",
-            AllowMultiple = false,
-            FileTypeFilter = new List<FilePickerFileType>
+            var topLevel = GetTopLevel(this);
+            if (topLevel == null) return;
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
             {
-                FilePickerFileTypes.ImageAll
-            }
-        });
+                Title = "选择课表图片",
+                AllowMultiple = false,
+                FileTypeFilter = new List<FilePickerFileType>
+                {
+                    FilePickerFileTypes.ImageAll
+                }
+            });
 
-        if (files.Count > 0)
+            if (files.Count > 0)
+            {
+                await AttachImageAsync(files[0]);
+            }
+        }
+        catch (Exception ex)
         {
-            await AttachImageAsync(files[0]);
+            // async void 里未捕获的异常会直接抛到 UI 线程，这里兜住文件被占用/无权限等读取失败。
+            _selectedImageBytes = null;
+            SetImageStatus($"读取图片失败：{ex.Message}");
+            if (ClearImageButton != null) ClearImageButton.IsVisible = false;
         }
     }
 
