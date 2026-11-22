@@ -2,6 +2,7 @@
                      xmlns="https://github.com/avaloniaui"
                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                      xmlns:ci="http://classisland.tech/schemas/xaml/core"
+                     xmlns:fa="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
                      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                      mc:Ignorable="d">
@@ -11,247 +12,356 @@
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="11,5"/>
-            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="11,4"/>
+            <Setter Property="FontSize" Value="12"/>
             <Setter Property="Margin" Value="0,0,6,6"/>
         </Style>
         <Style Selector="Button.chip:pointerover">
-            <Setter Property="BorderBrush" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentFillColorDefaultBrush}"/>
         </Style>
-        <!-- 无边框图标按钮 -->
-        <Style Selector="Button.ghost">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="0"/>
-            <Setter Property="Width" Value="28"/>
-            <Setter Property="Height" Value="28"/>
-            <Setter Property="CornerRadius" Value="6"/>
+
+        <!-- 动态文本样式类（代码创建控件时通过 Classes 挂载，自动跟随深浅主题） -->
+        <Style Selector="TextBlock.subtle">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}"/>
         </Style>
-        <Style Selector="Button.ghost:pointerover">
-            <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}"/>
+        <Style Selector="TextBlock.status-success">
+            <Setter Property="Foreground" Value="{DynamicResource SystemFillColorSuccessBrush}"/>
+        </Style>
+        <Style Selector="TextBlock.status-error">
+            <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}"/>
         </Style>
     </ci:SettingsPageBase.Styles>
+
     <Grid>
         <!-- 密码/TOTP 访问锁定遮罩层 -->
         <Border Name="LockOverlayBorder" IsVisible="False"
                 Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                BorderThickness="1" CornerRadius="12" Padding="28"
-                MaxWidth="440" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <StackPanel Spacing="20">
-                <TextBlock Text="安全访问保护" FontSize="20" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                BorderThickness="1" CornerRadius="8" Padding="28" Margin="16"
+                MaxWidth="420" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel Spacing="16">
+                <StackPanel Spacing="6" HorizontalAlignment="Center">
+                    <ci:FluentIcon Glyph="&#xEF63;" FontSize="36" HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource AccentTextFillColorPrimaryBrush}"/>
+                    <TextBlock Text="安全访问保护" Theme="{StaticResource SubtitleTextBlockStyle}"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock Name="LockHintTextBlock" Theme="{StaticResource CaptionTextBlockStyle}"
+                               TextAlignment="Center" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Text="验证前页面不会锁定，TOTP 也不会生效。"/>
+                </StackPanel>
 
-                <StackPanel Spacing="8">
-                    <TextBlock Text="固定密码或 6 位动态验证码" FontSize="13"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                    <Grid ColumnDefinitions="*, Auto">
-                        <TextBox Name="UnlockPasswordBox" PasswordChar="*" HorizontalAlignment="Stretch"/>
-                        <Button Name="UnlockButton" Grid.Column="1" Margin="8,0,0,0" Content="解锁" Classes="accent"/>
-                    </Grid>
+                <StackPanel Spacing="6">
+                    <ci:Field Label="固定密码或 6 位动态验证码">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBox Name="UnlockPasswordBox" PasswordChar="●"
+                                     Watermark="请输入密码或 6 位验证码"
+                                     HorizontalAlignment="Stretch"/>
+                            <Button Name="UnlockButton" Grid.Column="1" Margin="8,0,0,0" Classes="accent">
+                                <ci:IconText Glyph="&#xEAF8;" Text="解锁"/>
+                            </Button>
+                        </Grid>
+                    </ci:Field>
                     <TextBlock Name="UnlockErrorTextBlock" FontSize="12" IsVisible="False" TextWrapping="Wrap"
                                Foreground="{DynamicResource SystemFillColorCriticalBrush}"/>
                 </StackPanel>
-
-                <TextBlock Name="LockHintTextBlock" FontSize="12" TextWrapping="Wrap"
-                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                           Text="验证前页面不会锁定，TOTP 也不会生效。"/>
             </StackPanel>
         </Border>
 
-        <!-- 主设置内容区域 -->
+        <!-- 主设置内容区域（标题已由 ClassIsland 2.x 设置窗口顶栏统一渲染，此处不再重复） -->
         <ScrollViewer Name="MainSettingsScrollViewer" IsVisible="True">
-            <!-- settings-container 由 ClassIsland 主题提供：MaxWidth 960、外边距与间距，
-                 跟随宿主的设置页规范，不要自己写死宽度。 -->
-            <StackPanel Classes="settings-container" Spacing="12">
-                <StackPanel Spacing="2">
-                    <TextBlock Text="IslandAgent设置" FontSize="22" FontWeight="SemiBold"/>
-                    <TextBlock Text="模型服务、偏好与安全防护" FontSize="12"
-                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                </StackPanel>
-
-                <TabControl>
+            <StackPanel Classes="settings-container animated-intro">
+                <TabControl Classes="compact" ClipToBounds="False" Padding="0" Margin="0">
                     <!-- 选项卡 1：模型服务 -->
                     <TabItem Header="模型服务">
-                        <StackPanel Spacing="12" Margin="0,12,0,0">
-                            <Grid ColumnDefinitions="*, Auto">
-                                <TextBlock Text="模型服务" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                <Button Name="AddProviderButton" Grid.Column="1" Content="添加供应商" Classes="accent"/>
+                        <StackPanel Classes="animated-intro" Spacing="4" Margin="0,10,0,0">
+                            <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,4">
+                                <ci:IconText Glyph="&#xE4DC;" Text="模型供应商" VerticalAlignment="Center"/>
+                                <Button Name="AddProviderButton" Grid.Column="1" Classes="accent">
+                                    <ci:IconText Glyph="&#xE00D;" Text="添加供应商"/>
+                                </Button>
                             </Grid>
 
-                            <!-- 供应商卡片列表容器 -->
-                            <StackPanel Name="ProvidersListContainer" Spacing="8"/>
+                            <!-- 供应商 SettingsExpander 列表容器 -->
+                            <StackPanel Name="ProvidersListContainer" Spacing="4"/>
                         </StackPanel>
                     </TabItem>
 
                     <!-- 选项卡 2：高级偏好 -->
                     <TabItem Header="高级偏好">
-                        <StackPanel Spacing="16" Margin="0,12,0,0">
-                            <!-- 功能权限开关 -->
-                            <StackPanel Spacing="8">
-                                <CheckBox Name="IsMemoryEnabledCheckBox" Content="启用长期记忆" IsChecked="True"/>
-                                <CheckBox Name="IsCommandExecutionEnabledCheckBox" Content="允许 AI 执行命令行命令"/>
-                                <TextBlock Text="开启后 AI 可执行终端指令，请确认信任当前模型。" FontSize="12" TextWrapping="Wrap"
-                                           Margin="28,-2,0,0"
-                                           Foreground="{DynamicResource SystemFillColorCautionBrush}"/>
-                            </StackPanel>
+                        <StackPanel Classes="animated-intro" Spacing="4" Margin="0,10,0,0">
+                            <!-- 功能与权限 -->
+                            <ci:IconText Glyph="&#xE84F;" Text="功能与权限" Margin="0,0,0,4"/>
 
-                            <!-- 会话管理 -->
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="会话管理" FontWeight="SemiBold"/>
-                                <CheckBox Name="IsMultiSessionEnabledCheckBox"
-                                          Content="启用多会话模式（聊天窗口左侧显示会话列表，各会话历史独立）" IsChecked="True"/>
-                                <CheckBox Name="SessionSidebarExpandedCheckBox" Margin="28,0,0,0"
-                                          Content="打开窗口时默认展开会话列表（关闭后默认收起，点左上角按钮展开）"
-                                          IsChecked="True"/>
-                                <CheckBox Name="NewSessionOnOpenCheckBox"
-                                          Content="每次打开对话窗口时新建会话（关闭则继续上一次会话）"/>
-                                <CheckBox Name="AiSessionTitleCheckBox"
-                                          Content="会话标题由 AI 总结生成（每会话首次对话后自动命名，额外消耗少量 token）"/>
-                                <CheckBox Name="BackgroundTaskNotificationCheckBox"
-                                          Content="后台任务完成时发送系统通知"/>
-                                <TextBlock Text="对话历史保存在本机插件目录的 sessions.json 中，最多保留最近 30 个会话；关闭多会话模式后仍按单会话继续使用最近一次历史。"
-                                           FontSize="12" TextWrapping="Wrap" Margin="28,-2,0,0"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xE29E;}"
+                                                 Header="启用长期记忆"
+                                                 Description="开启后 AI 会在对话中自动参考并更新下方的长期记忆内容。">
+                                <fa:SettingsExpander.Footer>
+                                    <ToggleSwitch Name="IsMemoryEnabledCheckBox" IsChecked="True"/>
+                                </fa:SettingsExpander.Footer>
+                            </fa:SettingsExpander>
 
-                            <!-- 工具调用轮数上限 -->
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="工具调用轮数上限" FontWeight="SemiBold"/>
-                                <Grid ColumnDefinitions="120, *">
-                                    <NumericUpDown Name="MaxToolIterationsNumeric"
-                                                   Minimum="1" Maximum="50" Increment="1"
-                                                   FormatString="0"
-                                                   HorizontalAlignment="Left" Width="120"/>
-                                    <TextBlock Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center"
-                                               FontSize="12" TextWrapping="Wrap"
-                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                                               Text="单次提问内 AI 最多连续调用工具的轮数，超出后停止。数值越大越能完成复杂任务，API 调用与费用也越多。"/>
-                                </Grid>
-                            </StackPanel>
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xF499;}"
+                                                 Header="允许 AI 执行命令行命令"
+                                                 Description="开启后 AI 可调用系统终端执行命令，存在较高安全风险，请仅在信任当前模型时启用。">
+                                <fa:SettingsExpander.Footer>
+                                    <ToggleSwitch Name="IsCommandExecutionEnabledCheckBox"/>
+                                </fa:SettingsExpander.Footer>
+                            </fa:SettingsExpander>
 
-                            <!-- 自定义系统提示词 -->
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="自定义系统提示词" FontWeight="SemiBold"/>
-                                <TextBox Name="CustomPromptTextBox" AcceptsReturn="True" Height="88" TextWrapping="Wrap"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-                            </StackPanel>
+                            <fa:InfoBar Name="CommandWarningBanner"
+                                        Severity="Warning" IsClosable="False"
+                                        IsOpen="True" IsVisible="False"
+                                        Message="已开启命令行执行权限：AI 可直接运行本机终端指令，请确认信任当前模型并做好安全防护。"/>
 
-                            <!-- 长期记忆管理 -->
-                            <StackPanel Spacing="6">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="长期记忆" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                    <Button Name="ClearMemoryButton" Grid.Column="1" Content="清空"/>
-                                </Grid>
-                                <TextBox Name="CustomMemoryTextBox" AcceptsReturn="True" Height="104" TextWrapping="Wrap"
-                                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
-                            </StackPanel>
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xE125;}"
+                                                 Header="工具调用轮数上限"
+                                                 Description="单次提问内 AI 最多连续调用工具的轮数（1–50）。数值越大越能完成复杂任务，API 调用与费用也越多。">
+                                <fa:SettingsExpander.Footer>
+                                    <ci:Field VerticalAlignment="Center" Suffix="轮">
+                                        <NumericUpDown Name="MaxToolIterationsNumeric"
+                                                       Minimum="1" Maximum="50" Increment="1"
+                                                       FormatString="0" MinWidth="120"/>
+                                    </ci:Field>
+                                </fa:SettingsExpander.Footer>
+                            </fa:SettingsExpander>
+
+                            <!-- 会话与通知 -->
+                            <Separator Margin="0,12,0,4"/>
+                            <ci:IconText Glyph="&#xE3FE;" Text="会话与通知" Margin="0,0,0,4"/>
+
+                            <fa:SettingsExpander Name="MultiSessionExpander"
+                                                 IconSource="{ci:FluentIconSource &#xE3FE;}"
+                                                 Header="启用多会话模式"
+                                                 Description="聊天窗口左侧显示会话列表，各会话历史独立保存在插件目录 sessions.json 中（最多保留 30 个会话）。"
+                                                 IsExpanded="True">
+                                <fa:SettingsExpander.Footer>
+                                    <ToggleSwitch Name="IsMultiSessionEnabledCheckBox" IsChecked="True"/>
+                                </fa:SettingsExpander.Footer>
+                                <fa:SettingsExpanderItem Name="SessionSidebarExpandedItem"
+                                                         IconSource="{ci:FluentIconSource &#xEC60;}"
+                                                         Content="打开窗口时默认展开会话列表"
+                                                         Description="关闭后默认收起侧栏，需要时可点击窗口左上角按钮展开。">
+                                    <fa:SettingsExpanderItem.Footer>
+                                        <ToggleSwitch Name="SessionSidebarExpandedCheckBox" IsChecked="True"/>
+                                    </fa:SettingsExpanderItem.Footer>
+                                </fa:SettingsExpanderItem>
+                            </fa:SettingsExpander>
+
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xE3E6;}"
+                                                 Header="每次打开窗口时新建会话"
+                                                 Description="开启后每次打开对话窗口自动开始新会话，关闭则继续上一次对话历史。">
+                                <fa:SettingsExpander.Footer>
+                                    <ToggleSwitch Name="NewSessionOnOpenCheckBox"/>
+                                </fa:SettingsExpander.Footer>
+                            </fa:SettingsExpander>
+
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xE40A;}"
+                                                 Header="AI 自动总结会话标题"
+                                                 Description="每会话首次对话后由模型自动命名，会额外消耗少量 Token。">
+                                <fa:SettingsExpander.Footer>
+                                    <ToggleSwitch Name="AiSessionTitleCheckBox"/>
+                                </fa:SettingsExpander.Footer>
+                            </fa:SettingsExpander>
+
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xE025;}"
+                                                 Header="后台任务完成时发送系统通知"
+                                                 Description="关闭或隐藏对话窗口后，AI 后台任务完成时通过 ClassIsland 提醒通知您。">
+                                <fa:SettingsExpander.Footer>
+                                    <ToggleSwitch Name="BackgroundTaskNotificationCheckBox"/>
+                                </fa:SettingsExpander.Footer>
+                            </fa:SettingsExpander>
+
+                            <!-- 提示词与记忆 -->
+                            <Separator Margin="0,12,0,4"/>
+                            <ci:IconText Glyph="&#xE6BB;" Text="提示词与记忆" Margin="0,0,0,4"/>
+
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xE74F;}"
+                                                 Header="自定义系统提示词"
+                                                 Description="附加到系统提示词中，用于定制 AI 的回复风格、称呼或课堂规则。"
+                                                 IsExpanded="True">
+                                <fa:SettingsExpanderItem>
+                                    <TextBox Name="CustomPromptTextBox"
+                                             Watermark="输入自定义系统提示词（留空使用默认）"
+                                             AcceptsReturn="True" Height="96" TextWrapping="Wrap"
+                                             HorizontalAlignment="Stretch"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                                </fa:SettingsExpanderItem>
+                            </fa:SettingsExpander>
+
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xE5FD;}"
+                                                 Header="长期记忆内容"
+                                                 Description="记录教室、作息或课表相关的长期信息，开启长期记忆后会自动提供给 AI。"
+                                                 IsExpanded="True">
+                                <fa:SettingsExpander.Footer>
+                                    <Button Name="ClearMemoryButton"
+                                            Theme="{StaticResource TransparentButton}"
+                                            Foreground="IndianRed">
+                                        <ci:IconText Glyph="&#xE61D;" Text="清空"/>
+                                    </Button>
+                                </fa:SettingsExpander.Footer>
+                                <fa:SettingsExpanderItem>
+                                    <TextBox Name="CustomMemoryTextBox"
+                                             Watermark="长期记忆内容（也可在对话中让 AI 自动更新）"
+                                             AcceptsReturn="True" Height="108" TextWrapping="Wrap"
+                                             HorizontalAlignment="Stretch"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"/>
+                                </fa:SettingsExpanderItem>
+                            </fa:SettingsExpander>
                         </StackPanel>
                     </TabItem>
 
                     <!-- 选项卡 3：安全防护 -->
                     <TabItem Header="安全防护">
-                        <StackPanel Spacing="12" Margin="0,12,0,0">
+                        <StackPanel Classes="animated-intro" Spacing="4" Margin="0,10,0,0">
+                            <ci:IconText Glyph="&#xEF63;" Text="访问保护" Margin="0,0,0,4"/>
+
                             <!-- 固定密码 -->
-                            <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="8" Padding="14">
-                                <StackPanel Spacing="10">
-                                    <TextBlock Name="PasswordStatusTextBlock" Text="当前状态：未设置固定密码（默认无密码）" FontWeight="SemiBold"/>
-                                    <Grid ColumnDefinitions="*, Auto, Auto">
-                                        <TextBox Name="NewPasswordBox" PasswordChar="*" HorizontalAlignment="Stretch"/>
-                                        <Button Name="SavePasswordButton" Grid.Column="1" Margin="8,0,0,0" Content="更新密码"/>
-                                        <Button Name="ClearPasswordButton" Grid.Column="2" Margin="8,0,0,0" Content="清除密码" IsVisible="False"/>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xEC8B;}"
+                                                 Header="固定密码"
+                                                 Description="设置访问保护密码，打开设置页或执行敏感操作时验证。"
+                                                 IsExpanded="True">
+                                <fa:SettingsExpander.Footer>
+                                    <Button Name="ClearPasswordButton"
+                                            Theme="{StaticResource TransparentButton}"
+                                            Foreground="IndianRed" IsVisible="False">
+                                        <ci:IconText Glyph="&#xE671;" Text="清除密码"/>
+                                    </Button>
+                                </fa:SettingsExpander.Footer>
+                                <fa:SettingsExpanderItem>
+                                    <StackPanel Spacing="10" HorizontalAlignment="Stretch">
+                                        <TextBlock Name="PasswordStatusTextBlock"
+                                                   Text="当前状态：未设置固定密码（默认无密码）"
+                                                   FontSize="12.5" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                        <Grid ColumnDefinitions="*, Auto">
+                                            <TextBox Name="NewPasswordBox" PasswordChar="●"
+                                                     Watermark="输入新密码（留空更新则清除密码）"
+                                                     HorizontalAlignment="Stretch"/>
+                                            <Button Name="SavePasswordButton" Grid.Column="1" Margin="8,0,0,0"
+                                                    Classes="accent">
+                                                <ci:IconText Glyph="&#xEEB5;" Text="更新密码"/>
+                                            </Button>
+                                        </Grid>
+                                    </StackPanel>
+                                </fa:SettingsExpanderItem>
+                            </fa:SettingsExpander>
 
                             <!-- TOTP 动态口令 -->
-                            <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="8" Padding="14">
-                                <StackPanel Spacing="12">
-                                    <TextBlock Name="TotpStatusTextBlock" Text="当前状态：未启用 TOTP 动态口令" FontWeight="SemiBold"/>
-
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                            <fa:SettingsExpander Name="TotpExpander"
+                                                 IconSource="{ci:FluentIconSource &#xEE2D;}"
+                                                 Header="TOTP 动态口令"
+                                                 Description="使用手机或手环的验证器 App（如 Microsoft Authenticator）生成 6 位动态验证码。"
+                                                 IsExpanded="True">
+                                <fa:SettingsExpander.Footer>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
                                         <Button Name="SetupTotpButton" Content="生成并配置 TOTP"/>
-                                        <Button Name="DisableTotpButton" Content="关闭 TOTP 保护" IsVisible="False"/>
+                                        <Button Name="DisableTotpButton"
+                                                Theme="{StaticResource TransparentButton}"
+                                                Foreground="IndianRed" Content="关闭 TOTP" IsVisible="False"/>
                                     </StackPanel>
+                                </fa:SettingsExpander.Footer>
 
-                                    <!-- TOTP 暂存与绑定配置卡片 -->
-                                    <Border Name="TotpSetupCard" IsVisible="False"
-                                            Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                                            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                                            BorderThickness="1" CornerRadius="8" Padding="14">
-                                        <StackPanel Spacing="14">
-                                            <TextBlock Text="验证成功前 TOTP 不会生效，页面也不会被锁定。" FontSize="12" TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                <fa:SettingsExpanderItem>
+                                    <TextBlock Name="TotpStatusTextBlock"
+                                               Text="当前状态：未启用 TOTP 动态口令"
+                                               FontSize="12.5" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                </fa:SettingsExpanderItem>
 
-                                            <!-- 密钥字符串 -->
-                                            <StackPanel Spacing="6">
-                                                <TextBlock Text="密钥字符串" FontSize="12"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                                <Grid ColumnDefinitions="*, Auto">
-                                                    <TextBox Name="TotpSecretStringTextBox" IsReadOnly="True"
-                                                             FontFamily="Consolas, monospace" FontSize="14"
-                                                             HorizontalAlignment="Stretch"/>
-                                                    <Button Name="CopyTotpSecretButton" Grid.Column="1" Margin="8,0,0,0" Content="复制"/>
-                                                </Grid>
-                                            </StackPanel>
+                                <!-- TOTP 暂存与绑定配置项 -->
+                                <fa:SettingsExpanderItem Name="TotpSetupCard" IsVisible="False">
+                                    <StackPanel Spacing="14" HorizontalAlignment="Stretch">
+                                        <fa:InfoBar Severity="Informational" IsClosable="False" IsOpen="True"
+                                                    Message="验证成功前 TOTP 不会生效，页面也不会被锁定。"/>
 
+                                        <Grid ColumnDefinitions="Auto, *">
                                             <!-- 二维码 -->
-                                            <StackPanel Spacing="6">
-                                                <TextBlock Text="绑定二维码" FontSize="12"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                                <Border Background="White" CornerRadius="8" HorizontalAlignment="Left" Padding="8">
-                                                    <Image Name="TotpQrCodeImage" Width="160" Height="160"/>
+                                            <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,18,0"
+                                                        VerticalAlignment="Top">
+                                                <Border Background="White" CornerRadius="8" Padding="8">
+                                                    <Image Name="TotpQrCodeImage" Width="156" Height="156"/>
                                                 </Border>
+                                                <TextBlock Text="扫码绑定验证器"
+                                                           Theme="{StaticResource CaptionTextBlockStyle}"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                           HorizontalAlignment="Center"/>
                                             </StackPanel>
 
-                                            <!-- 激活验证 -->
-                                            <StackPanel Spacing="6">
-                                                <TextBlock Text="输入 6 位验证码完成激活" FontSize="12"
-                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                                <Grid ColumnDefinitions="140, Auto, Auto">
-                                                    <TextBox Name="TotpVerifyCodeTextBox" MaxLength="6"/>
-                                                    <Button Name="VerifyAndActivateTotpButton" Grid.Column="1" Margin="8,0,0,0" Content="激活" Classes="accent"/>
-                                                    <Button Name="CancelPendingTotpButton" Grid.Column="2" Margin="8,0,0,0" Content="取消"/>
-                                                </Grid>
-                                                <TextBlock Name="TotpVerifyResultTextBlock" FontSize="12" TextWrapping="Wrap"/>
+                                            <!-- 密钥与激活验证 -->
+                                            <StackPanel Grid.Column="1" Spacing="12" VerticalAlignment="Center">
+                                                <ci:Field Label="密钥字符串">
+                                                    <Grid ColumnDefinitions="*, Auto">
+                                                        <TextBox Name="TotpSecretStringTextBox" IsReadOnly="True"
+                                                                 FontFamily="Consolas, monospace" FontSize="13.5"
+                                                                 HorizontalAlignment="Stretch"/>
+                                                        <Button Name="CopyTotpSecretButton" Grid.Column="1"
+                                                                Margin="8,0,0,0">
+                                                            <ci:IconText Glyph="&#xE58B;" Text="复制"/>
+                                                        </Button>
+                                                    </Grid>
+                                                </ci:Field>
+
+                                                <ci:Field Label="输入 6 位验证码完成激活">
+                                                    <Grid ColumnDefinitions="*, Auto, Auto">
+                                                        <TextBox Name="TotpVerifyCodeTextBox" MaxLength="6"
+                                                                 Watermark="6 位动态验证码"/>
+                                                        <Button Name="VerifyAndActivateTotpButton" Grid.Column="1"
+                                                                Margin="8,0,0,0" Classes="accent">
+                                                            <ci:IconText Glyph="&#xE424;" Text="激活"/>
+                                                        </Button>
+                                                        <Button Name="CancelPendingTotpButton" Grid.Column="2"
+                                                                Margin="6,0,0,0" Content="取消"/>
+                                                    </Grid>
+                                                </ci:Field>
+
+                                                <TextBlock Name="TotpVerifyResultTextBlock" FontSize="12"
+                                                           TextWrapping="Wrap"/>
                                             </StackPanel>
-                                        </StackPanel>
-                                    </Border>
-                                </StackPanel>
-                            </Border>
+                                        </Grid>
+                                    </StackPanel>
+                                </fa:SettingsExpanderItem>
+                            </fa:SettingsExpander>
                         </StackPanel>
                     </TabItem>
                 </TabControl>
 
-                <!-- 保存设置常驻按钮栏 -->
-                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,4,0,0">
-                    <Button Name="SaveButton" Content="保存" Classes="accent"/>
-                    <TextBlock Name="StatusTextBlock" VerticalAlignment="Center"
-                               Foreground="{DynamicResource SystemFillColorSuccessBrush}"/>
-                </StackPanel>
+                <!-- 底部状态与立即保存栏 -->
+                <Separator Margin="0,12,0,4"/>
+                <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,8">
+                    <TextBlock Name="StatusTextBlock" VerticalAlignment="Center" FontSize="12"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Text="所有更改均会自动保存"/>
+                    <Button Name="SaveButton" Grid.Column="1" Theme="{StaticResource TransparentButton}">
+                        <ci:IconText Glyph="&#xEEB5;" Text="立即保存"/>
+                    </Button>
+                </Grid>
             </StackPanel>
         </ScrollViewer>
 
-        <!-- 供应商 添加/编辑 模态弹窗遮罩层 -->
+        <!-- 供应商 添加/编辑 模态弹窗遮罩层（WinUI 3 ContentDialog 视觉风格） -->
         <Grid Name="ProviderDialogOverlay" IsVisible="False" Background="#8C000000">
             <Border Background="{DynamicResource SolidBackgroundFillColorBaseBrush}"
-                    CornerRadius="16" Width="520" MaxHeight="660"
-                    BoxShadow="0 10 32 0 #40000000"
+                    BorderBrush="{DynamicResource SurfaceStrokeColorDefaultBrush}"
+                    BorderThickness="1" CornerRadius="8" Width="520" MaxHeight="660"
+                    BoxShadow="0 8 32 0 #40000000"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid RowDefinitions="Auto, Auto, *, Auto">
-                    <!-- 标题区：标题 + 一句话说明，右上角关闭 -->
-                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="22,18,14,14">
+                    <!-- 标题区 -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="20,16,12,12">
                         <StackPanel Spacing="3">
-                            <TextBlock Name="DialogTitleTextBlock" Text="添加供应商" FontSize="17" FontWeight="SemiBold"/>
-                            <TextBlock Name="DialogSubtitleTextBlock" FontSize="12" TextWrapping="Wrap"
+                            <TextBlock Name="DialogTitleTextBlock" Text="添加供应商"
+                                       Theme="{StaticResource SubtitleTextBlockStyle}"/>
+                            <TextBlock Name="DialogSubtitleTextBlock"
+                                       Theme="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                        Text="填好别名、地址和密钥就能用。预置模板只填地址，密钥要自己填。"/>
                         </StackPanel>
-                        <Button Name="DialogCloseButton" Grid.Column="1" Classes="ghost" VerticalAlignment="Top"
-                                ToolTip.Tip="关闭">
-                            <Path Data="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
-                                  Width="10" Height="10" Stretch="Uniform"
-                                  Fill="{DynamicResource TextFillColorSecondaryBrush}"/>
+                        <Button Name="DialogCloseButton" Grid.Column="1"
+                                Theme="{StaticResource TransparentButton}"
+                                VerticalAlignment="Top" ToolTip.Tip="关闭">
+                            <ci:FluentIcon Glyph="&#xE671;" FontSize="14"/>
                         </Button>
                     </Grid>
 
@@ -259,48 +369,53 @@
 
                     <!-- 表单区 -->
                     <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel Spacing="14" Margin="22,16,22,8">
+                        <StackPanel Spacing="12" Margin="20,14,20,10">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="快速填充" FontSize="11"
+                                <TextBlock Text="快速填充" Theme="{StaticResource CaptionTextBlockStyle}"
                                            Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                 <WrapPanel Name="PresetButtonsWrapPanel" Orientation="Horizontal"/>
                             </StackPanel>
 
-                            <StackPanel Spacing="5">
-                                <TextBlock Text="供应商别名" FontSize="11"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                            <ci:Field Label="供应商别名">
                                 <TextBox Name="DialogNameTextBox" Watermark="例如：DeepSeek"/>
+                            </ci:Field>
+
+                            <StackPanel Spacing="4">
+                                <ci:Field Label="API 地址">
+                                    <TextBox Name="DialogBaseUrlTextBox" Watermark="https://api.deepseek.com"/>
+                                </ci:Field>
+                                <TextBlock Text="可以不写 /v1，请求失败时会自动补上再试一次。"
+                                           Theme="{StaticResource CaptionTextBlockStyle}"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                           TextWrapping="Wrap"/>
                             </StackPanel>
 
-                            <StackPanel Spacing="5">
-                                <TextBlock Text="API 地址" FontSize="11"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                <TextBox Name="DialogBaseUrlTextBox" Watermark="https://api.deepseek.com"/>
-                                <TextBlock Text="可以不写 /v1，请求失败时会自动补上再试一次。" FontSize="11"
-                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-                            </StackPanel>
+                            <ci:Field Label="API 密钥">
+                                <TextBox Name="DialogApiKeyTextBox" PasswordChar="●" Watermark="sk-..."/>
+                            </ci:Field>
 
-                            <StackPanel Spacing="5">
-                                <TextBlock Text="API 密钥" FontSize="11"
-                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                <TextBox Name="DialogApiKeyTextBox" PasswordChar="*" Watermark="sk-..."/>
-                            </StackPanel>
-
-                            <!-- 模型：标题行 + 手动添加行 + 列表，列表不再套第二层边框 -->
+                            <!-- 模型列表区 -->
                             <StackPanel Spacing="8">
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="模型" FontSize="11" VerticalAlignment="Center"
+                                    <TextBlock Text="模型列表" Theme="{StaticResource CaptionTextBlockStyle}"
+                                               VerticalAlignment="Center"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                    <Button Name="DialogFetchModelsButton" Grid.Column="1" Content="从接口获取"/>
+                                    <Button Name="DialogFetchModelsButton" Grid.Column="1"
+                                            Theme="{StaticResource TransparentButton}">
+                                        <ci:IconText Glyph="&#xE161;" Text="从接口获取"/>
+                                    </Button>
                                 </Grid>
 
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBox Name="DialogNewModelTextBox" Watermark="或手动输入模型名"/>
-                                    <Button Name="DialogAddModelButton" Grid.Column="1" Margin="8,0,0,0" Content="添加"/>
+                                    <TextBox Name="DialogNewModelTextBox" Watermark="手动输入模型名，按回车添加"/>
+                                    <Button Name="DialogAddModelButton" Grid.Column="1" Margin="8,0,0,0">
+                                        <ci:IconText Glyph="&#xE00D;" Text="添加"/>
+                                    </Button>
                                 </Grid>
 
-                                <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}"
-                                        CornerRadius="8" Padding="6,4" MaxHeight="150">
+                                <Border Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
+                                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="1" CornerRadius="6" Padding="8,4" MaxHeight="150">
                                     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                                         <StackPanel Name="DialogModelsContainer" Spacing="2"/>
                                     </ScrollViewer>
@@ -309,32 +424,25 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- 底部操作区：错误提示在左，按钮固定在右下角，不随内容滚动 -->
-                    <Border Grid.Row="3" BorderThickness="0,1,0,0" Padding="22,12,20,14"
+                    <!-- 底部操作区：WinUI 3 对话框底部浅底栏，错误提示在左，按钮在右 -->
+                    <Border Grid.Row="3" BorderThickness="0,1,0,0" Padding="20,12,18,12"
+                            CornerRadius="0,0,8,8"
+                            Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}"
                             BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Name="DialogErrorTextBlock" IsVisible="False" FontSize="11.5"
+                            <TextBlock Name="DialogErrorTextBlock" IsVisible="False" FontSize="12"
                                        TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"
                                        Foreground="{DynamicResource SystemFillColorCriticalBrush}"/>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                                 <Button Name="DialogCancelButton" Content="取消"/>
-                                <Button Name="DialogSaveButton" Content="保存" Classes="accent"/>
+                                <Button Name="DialogSaveButton" Classes="accent">
+                                    <ci:IconText Glyph="&#xE424;" Text="保存"/>
+                                </Button>
                             </StackPanel>
                         </Grid>
                     </Border>
                 </Grid>
             </Border>
         </Grid>
-
-        <!-- 顶部 Toast 提示浮层 -->
-        <Border Name="ToastBorder" IsVisible="False"
-                HorizontalAlignment="Center" VerticalAlignment="Top"
-                Margin="0,20,0,0" CornerRadius="8"
-                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1"
-                Padding="18,10">
-            <TextBlock Name="ToastMessageTextBlock" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"
-                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
-        </Border>
     </Grid>
 </ci:SettingsPageBase>
