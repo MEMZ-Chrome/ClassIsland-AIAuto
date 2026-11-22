@@ -76,7 +76,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         });
     }
 
-    private void UpdateDependentControlStates(bool syncMultiSessionExpander = false)
+    private void UpdateDependentControlStates(bool syncMultiSessionExpander = false, bool syncNotificationExpander = false)
     {
         if (CommandWarningBanner != null)
         {
@@ -91,6 +91,16 @@ public partial class AutomationSettingsPage : SettingsPageBase
         if (syncMultiSessionExpander && MultiSessionExpander != null)
         {
             MultiSessionExpander.IsExpanded = _settings.IsMultiSessionEnabled;
+        }
+
+        if (AiNotificationSummaryItem != null)
+        {
+            AiNotificationSummaryItem.IsEnabled = _settings.IsBackgroundTaskNotificationEnabled;
+        }
+
+        if (syncNotificationExpander && BackgroundNotificationExpander != null)
+        {
+            BackgroundNotificationExpander.IsExpanded = _settings.IsBackgroundTaskNotificationEnabled;
         }
     }
 
@@ -146,10 +156,13 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 _settings.IsBackgroundTaskNotificationEnabled = updated.IsBackgroundTaskNotificationEnabled;
                 if (BackgroundTaskNotificationCheckBox != null) BackgroundTaskNotificationCheckBox.IsChecked = updated.IsBackgroundTaskNotificationEnabled;
 
+                _settings.IsAiNotificationSummaryEnabled = updated.IsAiNotificationSummaryEnabled;
+                if (AiNotificationSummaryCheckBox != null) AiNotificationSummaryCheckBox.IsChecked = updated.IsAiNotificationSummaryEnabled;
+
                 _settings.MaxToolIterations = updated.MaxToolIterations;
                 if (MaxToolIterationsNumeric != null) MaxToolIterationsNumeric.Value = updated.EffectiveMaxToolIterations;
 
-                UpdateDependentControlStates(syncMultiSessionExpander: true);
+                UpdateDependentControlStates(syncMultiSessionExpander: true, syncNotificationExpander: true);
 
                 // 供应商列表可能被 AI 在聊天窗口里增删改过，必须重建卡片，
                 // 否则页面停留在过时快照上，用户在旧卡片上编辑/删除极易造成脏写冲突。
@@ -355,6 +368,11 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 BackgroundTaskNotificationCheckBox.IsChecked = _settings.IsBackgroundTaskNotificationEnabled;
             }
 
+            if (AiNotificationSummaryCheckBox != null)
+            {
+                AiNotificationSummaryCheckBox.IsChecked = _settings.IsAiNotificationSummaryEnabled;
+            }
+
             if (MaxToolIterationsNumeric != null)
             {
                 MaxToolIterationsNumeric.Value = _settings.EffectiveMaxToolIterations;
@@ -370,7 +388,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 CustomMemoryTextBox.Text = _settings.CustomMemory;
             }
 
-            UpdateDependentControlStates(syncMultiSessionExpander: true);
+            UpdateDependentControlStates(syncMultiSessionExpander: true, syncNotificationExpander: true);
         }
         finally
         {
@@ -390,7 +408,15 @@ public partial class AutomationSettingsPage : SettingsPageBase
         if (SessionSidebarExpandedCheckBox != null) SessionSidebarExpandedCheckBox.IsCheckedChanged += (_, _) => AutoSave();
         if (NewSessionOnOpenCheckBox != null) NewSessionOnOpenCheckBox.IsCheckedChanged += (_, _) => AutoSave();
         if (AiSessionTitleCheckBox != null) AiSessionTitleCheckBox.IsCheckedChanged += (_, _) => AutoSave();
-        if (BackgroundTaskNotificationCheckBox != null) BackgroundTaskNotificationCheckBox.IsCheckedChanged += (_, _) => AutoSave();
+        if (BackgroundTaskNotificationCheckBox != null)
+        {
+            BackgroundTaskNotificationCheckBox.IsCheckedChanged += (_, _) =>
+            {
+                AutoSave();
+                UpdateDependentControlStates(syncNotificationExpander: true);
+            };
+        }
+        if (AiNotificationSummaryCheckBox != null) AiNotificationSummaryCheckBox.IsCheckedChanged += (_, _) => AutoSave();
         if (MaxToolIterationsNumeric != null) MaxToolIterationsNumeric.ValueChanged += (_, _) => AutoSave();
         if (CustomPromptTextBox != null) CustomPromptTextBox.LostFocus += (_, _) => AutoSave();
         if (CustomMemoryTextBox != null) CustomMemoryTextBox.LostFocus += (_, _) => AutoSave();
@@ -813,6 +839,7 @@ public partial class AutomationSettingsPage : SettingsPageBase
         _settings.IsNewSessionOnOpenEnabled = NewSessionOnOpenCheckBox?.IsChecked ?? false;
         _settings.IsAiSessionTitleEnabled = AiSessionTitleCheckBox?.IsChecked ?? false;
         _settings.IsBackgroundTaskNotificationEnabled = BackgroundTaskNotificationCheckBox?.IsChecked ?? false;
+        _settings.IsAiNotificationSummaryEnabled = AiNotificationSummaryCheckBox?.IsChecked ?? true;
         var iterations = MaxToolIterationsNumeric?.Value;
         _settings.MaxToolIterations = iterations.HasValue
             ? (int)Math.Clamp(iterations.Value, 1m, 50m)

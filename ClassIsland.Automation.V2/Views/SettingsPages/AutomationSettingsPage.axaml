@@ -165,12 +165,21 @@
                                 </fa:SettingsExpander.Footer>
                             </fa:SettingsExpander>
 
-                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xE025;}"
+                            <fa:SettingsExpander Name="BackgroundNotificationExpander"
+                                                 IconSource="{ci:FluentIconSource &#xE025;}"
                                                  Header="后台任务完成时发送系统通知"
                                                  Description="关闭或隐藏对话窗口后，AI 后台任务完成时通过 ClassIsland 提醒通知您。">
                                 <fa:SettingsExpander.Footer>
                                     <ToggleSwitch Name="BackgroundTaskNotificationCheckBox"/>
                                 </fa:SettingsExpander.Footer>
+                                <fa:SettingsExpanderItem Name="AiNotificationSummaryItem"
+                                                         IconSource="{ci:FluentIconSource &#xE40A;}"
+                                                         Content="AI 单独生成单行通知摘要"
+                                                         Description="开启后额外调用模型生成 10～20 字简短摘要，确保状态栏单行完整显示（关闭则直接截取原回复首行）。">
+                                    <fa:SettingsExpanderItem.Footer>
+                                        <ToggleSwitch Name="AiNotificationSummaryCheckBox" IsChecked="True"/>
+                                    </fa:SettingsExpanderItem.Footer>
+                                </fa:SettingsExpanderItem>
                             </fa:SettingsExpander>
 
                             <!-- 提示词与记忆 -->
