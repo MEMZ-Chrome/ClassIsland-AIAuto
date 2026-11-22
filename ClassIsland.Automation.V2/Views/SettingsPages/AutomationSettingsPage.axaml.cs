@@ -15,7 +15,6 @@ using ClassIsland.Core.Attributes;
 using ClassIsland.Core.Controls;
 using ClassIsland.Core.Enums.SettingsWindow;
 using ClassIsland.Core.Helpers.UI;
-using ClassIsland.Core.Models.UI;
 using FluentAvalonia.UI.Controls;
 
 namespace ClassIsland.Automation.V2.Views.SettingsPages;
@@ -63,11 +62,17 @@ public partial class AutomationSettingsPage : SettingsPageBase
     {
         Dispatcher.UIThread.Post(() =>
         {
-            ToastsHelper.ShowToast(this, new ToastMessage(message)
+            // 通过 ToastsHelper 的字符串重载发送，避免直接调用 ToastMessage.Severity 的 setter：
+            // ClassIsland 2.0.4 SDK 里 Severity 是 set，2.1.0+ 改为 init（带 modreq(IsExternalInit)），
+            // 直接在插件侧赋值会在 2.1.x 宿主下触发 MissingMethodException。
+            if (isError)
             {
-                Severity = isError ? InfoBarSeverity.Error : InfoBarSeverity.Success,
-                Duration = TimeSpan.FromSeconds(isError ? 4 : 2.5)
-            });
+                this.ShowErrorToast(message);
+            }
+            else
+            {
+                this.ShowSuccessToast(message);
+            }
         });
     }
 
