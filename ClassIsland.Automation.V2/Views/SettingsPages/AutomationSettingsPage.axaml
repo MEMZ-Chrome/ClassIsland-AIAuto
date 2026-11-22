@@ -49,7 +49,7 @@
                     <TextBlock Name="LockHintTextBlock" Theme="{StaticResource CaptionTextBlockStyle}"
                                TextAlignment="Center" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
-                               Text="验证前页面不会锁定，TOTP 也不会生效。"/>
+                               Text="当前设置页面已开启访问保护，请输入固定密码或 6 位 TOTP 动态验证码解锁。"/>
                 </StackPanel>
 
                 <StackPanel Spacing="6">
@@ -229,7 +229,7 @@
                             <!-- 固定密码 -->
                             <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xEC8B;}"
                                                  Header="固定密码"
-                                                 Description="设置访问保护密码，打开设置页或执行敏感操作时验证。"
+                                                 Description="设置访问保护密码，打开设置页时需要验证，同时阻止 AI 修改敏感设置。"
                                                  IsExpanded="True">
                                 <fa:SettingsExpander.Footer>
                                     <Button Name="ClearPasswordButton"
