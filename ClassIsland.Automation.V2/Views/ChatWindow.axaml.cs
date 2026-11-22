@@ -13,6 +13,7 @@ using Shapes = Avalonia.Controls.Shapes;
 using ClassIsland.Automation.Core.Models;
 using ClassIsland.Automation.Core.Services;
 using ClassIsland.Core.Abstractions.Services;
+using ClassIsland.Core.Controls;
 
 namespace ClassIsland.Automation.V2.Views;
 
@@ -21,7 +22,7 @@ namespace ClassIsland.Automation.V2.Views;
 /// <see cref="ChatSessionManager"/> 单例持有，因此关闭窗口后任务继续后台执行，
 /// 重新打开窗口附着回同一份状态。
 /// </summary>
-public partial class ChatWindow : Window
+public partial class ChatWindow : MyWindow
 {
     private byte[]? _selectedImageBytes;
     private string _imageMimeType = "image/png";
