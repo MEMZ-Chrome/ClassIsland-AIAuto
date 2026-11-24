@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using Avalonia;
 using Avalonia.Controls;
@@ -449,6 +450,23 @@ public partial class AutomationSettingsPage : SettingsPageBase
                 AutoSave();
                 ShowToast("长期记忆库已清空并保存！");
             };
+        }
+
+        if (AuthorHomepageHyperlink != null)
+        {
+            AuthorHomepageHyperlink.Click += (_, _) => OpenExternalUrl("https://space.bilibili.com/1353783215");
+        }
+    }
+
+    private void OpenExternalUrl(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"无法打开链接：{ex.Message}", isError: true);
         }
     }
 

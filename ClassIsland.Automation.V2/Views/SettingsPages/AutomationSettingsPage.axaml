@@ -334,6 +334,21 @@
                             </fa:SettingsExpander>
                         </StackPanel>
                     </TabItem>
+
+                    <!-- 选项卡 4：关于 -->
+                    <TabItem Header="关于">
+                        <StackPanel Classes="animated-intro" Spacing="4" Margin="0,10,0,0">
+                            <fa:SettingsExpander IconSource="{ci:FluentIconSource &#xECE5;}"
+                                                 Header="MEMZ-Chrome"
+                                                 Description="Bilibili 主页">
+                                <fa:SettingsExpander.Footer>
+                                    <HyperlinkButton Name="AuthorHomepageHyperlink"
+                                                     Content="去关注"
+                                                     ToolTip.Tip="https://space.bilibili.com/1353783215"/>
+                                </fa:SettingsExpander.Footer>
+                            </fa:SettingsExpander>
+                        </StackPanel>
+                    </TabItem>
                 </TabControl>
 
                 <!-- 底部状态与立即保存栏 -->
